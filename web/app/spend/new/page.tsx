@@ -11,6 +11,7 @@ import { ArrowRight, Send, Wand2 } from "lucide-react";
 import { BlockSkeleton, ReadBlock, ReadError } from "@/components/read-state";
 import { TxBlock } from "@/components/tx-block";
 import { Button } from "@/components/ui/button";
+import { Suggest } from "@/components/suggest";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -156,9 +157,45 @@ function SpendForm({ desk, member, me, limits, onPosted }: { desk: Desk; member:
       </div>
     );
 
-  const example = () => {
-    setAmount("2");
-    setDescription("Two folding tables and a kettle for the monthly residents' meeting in the basement room.");
+  /** Whole spends to start from. The payee is a plain address nobody on this desk is likely to hold. */
+  const SPEND_IDEAS: { label: string; value: { payee: string; amount: string; description: string } }[] = [
+    {
+      label: "Tables for the meeting room",
+      value: {
+        payee: "0x00000000000000000000000000000000000a11ce",
+        amount: "2",
+        description: "Two folding tables and a kettle for the monthly residents' meeting in the basement room, bought from Harbour Hardware.",
+      },
+    },
+    {
+      label: "A new lock for the bike store",
+      value: {
+        payee: "0x0000000000000000000000000000000000b10c4e",
+        amount: "1",
+        description: "A new lock and two keys for the shared bike store, fitted by Castle Locksmiths on Mill Lane.",
+      },
+    },
+    {
+      label: "Printing the annual report",
+      value: {
+        payee: "0x000000000000000000000000000000000009a9e2",
+        amount: "3",
+        description: "Printing 500 copies of the annual report at Pelican Press, the print shop on Quay Street.",
+      },
+    },
+    {
+      label: "Seeds for the shared garden",
+      value: {
+        payee: "0x0000000000000000000000000000000000005eed",
+        amount: "0.5",
+        description: "Seed, compost and two trowels for the shared garden beds, paid to the residents' gardening club.",
+      },
+    },
+  ];
+  const pickSpend = (v: { payee: string; amount: string; description: string }) => {
+    setPayee(v.payee);
+    setAmount(v.amount);
+    setDescription(v.description);
     setNotice(String(leastNotice));
     setLive("60");
   };
@@ -190,9 +227,12 @@ function SpendForm({ desk, member, me, limits, onPosted }: { desk: Desk; member:
         <h2 id="spend-title" className="text-lg font-semibold">
           The spend
         </h2>
-        <Button type="button" variant="ghost" size="sm" onClick={example} disabled={busy || !!posted}>
-          <Wand2 /> Start from an example
-        </Button>
+      </div>
+      <div className="space-y-2 rounded-xl border border-brand/25 bg-brand/5 p-3">
+        <p className="flex items-center gap-1.5 text-xs font-medium">
+          <Wand2 className="size-3.5 text-brand" /> Fill the whole spend from an example, then change what you like
+        </p>
+        <Suggest label="Start with" options={SPEND_IDEAS} onPick={pickSpend} disabled={busy || !!posted} />
       </div>
 
       <div className="space-y-1">
@@ -213,6 +253,7 @@ function SpendForm({ desk, member, me, limits, onPosted }: { desk: Desk; member:
         <div className="space-y-1">
           <Label htmlFor="amount">Amount (GEN)</Label>
           <Input id="amount" value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="2" disabled={busy || !!posted} />
+          <Suggest label="" options={["0.5", "1", "2", "5"].map((a) => ({ label: a + " GEN", value: a }))} onPick={setAmount} disabled={busy || !!posted} />
           <p className="text-xs text-muted-foreground">At most the {gen(desk.freeAtto)} that is free.</p>
         </div>
         <div className="space-y-1">
@@ -225,6 +266,7 @@ function SpendForm({ desk, member, me, limits, onPosted }: { desk: Desk; member:
         <div className="space-y-1">
           <Label htmlFor="live">Then open for (minutes)</Label>
           <Input id="live" value={live} onChange={(e) => setLive(e.target.value)} inputMode="numeric" disabled={busy || !!posted} />
+          <Suggest label="" options={[["1 hour", "60"], ["6 hours", "360"], ["1 day", "1440"]].map(([l, v]) => ({ label: l, value: v }))} onPick={setLive} disabled={busy || !!posted} />
           <p className="text-xs text-muted-foreground">
             At least {limits.liveMinutes}. Both windows together at most {limits.windowMinutes} ({minutesLabel(limits.windowMinutes)}).
           </p>

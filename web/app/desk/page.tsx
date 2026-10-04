@@ -13,6 +13,7 @@ import { BlockSkeleton, ReadBlock, ReadError } from "@/components/read-state";
 import { ApprovalDots, PhaseBadge } from "@/components/reading";
 import { TxBlock } from "@/components/tx-block";
 import { Button } from "@/components/ui/button";
+import { Suggest } from "@/components/suggest";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -591,6 +592,11 @@ function OpenDesk({ onOpened, startOpen }: { onOpened: () => void; startOpen: bo
                   Name ({LIMITS.label[0]} to {LIMITS.label[1]} characters)
                 </Label>
                 <Input id="desk-label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Larch Court Tenants' Association" disabled={busy} />
+                <Suggest
+                  options={["Larch Court Tenants' Association", "Mill Lane allotment society", "Harbour Street football club kitty", "Year four parents' fund"].map((n) => ({ label: n, value: n }))}
+                  onPick={setLabel}
+                  disabled={busy}
+                />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="desk-amount">First funding (GEN)</Label>

@@ -35,6 +35,9 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-brand: var(--brand);
+  --color-brand-secondary: var(--brand-secondary);
+  --shadow-custom: var(--shadow-soft);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -70,6 +73,9 @@
   --card-foreground: #0b0e11;
   --popover: #ffffff;
   --popover-foreground: #0b0e11;
+  --brand: #6f55f2;
+  --brand-secondary: #b13fc6;
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.12);
   --primary: #6f55f2;
   --primary-foreground: #ffffff;
   --secondary: #e8ecf0;
@@ -105,7 +111,11 @@
 }
 
 .dark {
-  --background: #0b0e11;
+  --brand: #7c5cff;
+  --brand-secondary: #c14bd6;
+  --shadow-soft: 0px -1px 0px 0px hsla(0, 0%, 100%, 0.06), 0px 0px 0px 1px hsla(0, 0%, 100%, 0.06),
+    0px 1px 2px 0px rgba(0, 0, 0, 0.32), 0px 2px 4px 0px rgba(0, 0, 0, 0.32);
+  --background: #07080c;
   --foreground: #f2f4f6;
   --surface: #12161b;
   --card: color-mix(in oklab, #12161b 86%, transparent);
@@ -205,4 +215,51 @@
 @utility break-hash {
   overflow-wrap: anywhere;
   word-break: break-all;
+}
+
+
+/* ---- the page background (components/site-background.tsx) ---- */
+.bg-ruled {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 85% 65% at 50% 0%, #000 25%, transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse 85% 65% at 50% 0%, #000 25%, transparent 78%);
+}
+.bg-light {
+  position: absolute;
+  width: 62vmax;
+  height: 62vmax;
+  border-radius: 9999px;
+  filter: blur(90px);
+  opacity: 0.34;
+  will-change: transform;
+}
+.bg-light-a {
+  top: -24vmax;
+  left: -12vmax;
+  background: radial-gradient(circle, #7c5cff 0%, transparent 62%);
+  animation: bg-drift-a 26s ease-in-out infinite alternate;
+}
+.bg-light-b {
+  right: -18vmax;
+  bottom: -28vmax;
+  background: radial-gradient(circle, #c14bd6 0%, transparent 62%);
+  animation: bg-drift-b 34s ease-in-out infinite alternate;
+}
+@keyframes bg-drift-a {
+  to {
+    transform: translate(16vw, 12vh) scale(1.15);
+  }
+}
+@keyframes bg-drift-b {
+  to {
+    transform: translate(-14vw, -10vh) scale(1.1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bg-light {
+    animation: none;
+  }
 }

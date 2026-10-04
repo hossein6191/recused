@@ -16,6 +16,7 @@ import { ApprovalDots, PhaseBadge, ReadingCard, TokenPair } from "@/components/r
 import { TxBlock } from "@/components/tx-block";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Suggest } from "@/components/suggest";
 import { useChainSeconds } from "@/components/use-clock";
 import { useMe } from "@/components/use-me";
 import { useRead, type ReadState } from "@/components/use-read";
@@ -496,6 +497,16 @@ function Identifications({
             Say who the payee is, in one sentence
           </label>
           <Textarea id="ident" value={text} onChange={(e) => setText(e.target.value)} rows={2} placeholder="The payee is Pelican Press, the print shop on Quay Street." disabled={busy} />
+          <Suggest
+            options={[
+              "The payee is Pelican Press, the print shop on Quay Street.",
+              "The payee is Castle Locksmiths on Mill Lane, a firm with no member of this desk in it.",
+              "The payee is the residents' gardening club, which one of our members chairs.",
+              "The payee is Harbour Hardware, the shop the tables were quoted by.",
+            ].map((t) => ({ label: t.length > 46 ? t.slice(0, 44) + "..." : t, value: t }))}
+            onPick={setText}
+            disabled={busy}
+          />
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">
               {min} to {max} characters, signed with your address and added to the document every countersigner is read against. It
