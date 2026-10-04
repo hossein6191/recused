@@ -9,6 +9,7 @@
 // countersignature) are signed by the visitor's wallet. The script is lib/practice.ts and the
 // engine that signs and follows is lib/practice-engine.ts; this file only shows the state.
 
+import { SectionHelp } from "@/components/section-help";
 import * as React from "react";
 import Link from "next/link";
 import { ArrowRight, Check, CircleDot, FileSignature, FlaskConical, Hourglass, Loader2, Play, RotateCcw, Signature, TriangleAlert } from "lucide-react";
@@ -87,7 +88,8 @@ export default function PracticePage() {
       <section className={cn(card, "space-y-3 text-sm")} aria-labelledby="held-title">
         <h2 id="held-title" className="flex items-center gap-2 text-lg font-semibold">
           <FlaskConical className="size-4 text-primary" /> What the page holds, and what is yours
-        </h2>
+        <SectionHelp k="practice-accounts" />
+      </h2>
         <p className="text-foreground/90">
           The page makes three practice accounts, held in this browser, playing the other members of your desk. They are not
           anybody&apos;s wallet and hold test GEN only. Their keys are made here when you press the button, kept in this
@@ -146,6 +148,7 @@ function StartCard({ watching }: { watching: boolean }) {
     <section className={cn(card, "space-y-4")} aria-labelledby="start-title">
       <h2 id="start-title" className="text-lg font-semibold">
         Seven steps, two of them yours
+        <SectionHelp k="practice-start" />
       </h2>
       <ol className="list-decimal space-y-1.5 pl-5 text-sm text-muted-foreground">
         <li>The page makes the practice accounts and asks the test faucet for 10 test GEN each.</li>
@@ -748,6 +751,7 @@ function Afterwards({ view }: { view: PracticeView }) {
     <section className={cn(card, "space-y-3 text-sm")} aria-labelledby="after-title">
       <h2 id="after-title" className="text-lg font-semibold">
         {finished ? "What you have just seen" : "While it runs"}
+        <SectionHelp k="practice-after" />
       </h2>
       {finished ? (
         <p className="text-muted-foreground">

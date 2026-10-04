@@ -1,5 +1,7 @@
 "use client";
 
+import { SectionsMenu } from "@/components/sections-menu";
+import { RandomLetterSwap } from "@/components/ui/random-letter-swap";
 import { WelcomeButton } from "@/components/welcome";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -70,12 +72,13 @@ export function SiteHeader() {
                   active ? "bg-accent text-foreground" : "text-muted-foreground",
                 )}
               >
-                {n.label}
+                <RandomLetterSwap label={n.label} staggerDuration={0.025} transition={{ duration: 0.6, type: "spring" }} />
               </Link>
             );
           })}
         </nav>
         <div className="hidden items-center gap-3 sm:flex">
+          <SectionsMenu />
           <WelcomeButton />
           <NetworkBadge />
           {isMock ? null : <WalletButton />}

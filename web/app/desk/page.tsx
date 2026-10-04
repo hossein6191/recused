@@ -4,6 +4,7 @@
 // windows and countersignatures so far. Also the three things anyone may do to a desk without
 // being a member: fund it, reclaim their own share of what is free, and open another one.
 
+import { SectionHelp } from "@/components/section-help";
 import * as React from "react";
 import Link from "next/link";
 import { ArrowRight, ChevronDown, ChevronUp, FlaskConical, PiggyBank, Plus, Undo2, Users } from "lucide-react";
@@ -156,7 +157,8 @@ export default function DeskPage() {
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h2 id="spends-title" className="text-lg font-semibold">
                   Spends
-                </h2>
+        <SectionHelp k="desk-spends" />
+      </h2>
                 <Button asChild variant="outline" size="sm">
                   <Link href="/spend/new">
                     <Plus /> Post a spend
@@ -183,7 +185,8 @@ export default function DeskPage() {
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h2 id="members-title" className="flex items-center gap-2 text-lg font-semibold">
                   <Users className="size-4 text-primary" /> Members and what each filed
-                </h2>
+        <SectionHelp k="desk-members" />
+      </h2>
                 <Button asChild variant="outline" size="sm">
                   <Link href="/enrol">File or amend your disclosure</Link>
                 </Button>
@@ -243,7 +246,8 @@ function DeskSummary({ desk }: { desk: Desk }) {
           <p className="text-xs font-semibold tracking-widest text-primary uppercase">Desk {desk.id}</p>
           <h2 id="desk-title" className="text-2xl font-semibold break-words">
             {desk.label}
-          </h2>
+        <SectionHelp k="desk-balance" />
+      </h2>
           <p className="text-xs text-muted-foreground">
             Opened {when(desk.openedAt) || "at an unreadable time"} by <Address value={desk.opener} className="text-xs" /> · sequence
             number {desk.openedSeq} · the counter now stands at {desk.seqNow}
@@ -441,6 +445,7 @@ function YourPosition({ desk, me, members, onChanged }: { desk: Desk; me: string
     <section className={card} aria-labelledby="you-title">
       <h2 id="you-title" className="flex items-center gap-2 text-lg font-semibold">
         <PiggyBank className="size-4 text-primary" /> You and this desk
+        <SectionHelp k="desk-you" />
       </h2>
       <div className="mt-3 grid gap-4 lg:grid-cols-2">
         <div className="space-y-2 text-sm">
@@ -572,7 +577,8 @@ function OpenDesk({ onOpened, startOpen }: { onOpened: () => void; startOpen: bo
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="open-title" className="text-lg font-semibold">
           Open a desk of your own
-        </h2>
+        <SectionHelp k="desk-open" />
+      </h2>
         {!startOpen ? (
           <Button type="button" variant="outline" size="sm" onClick={() => setShown((s) => !s)} aria-expanded={visible}>
             {visible ? <ChevronUp /> : <ChevronDown />} {visible ? "Hide the form" : "Show the form"}

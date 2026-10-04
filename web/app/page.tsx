@@ -5,7 +5,7 @@ import { Guide } from "@/components/guide";
 import { TokenPair, VerdictBadge } from "@/components/reading";
 import { Button } from "@/components/ui/button";
 import { HeroCta } from "@/components/hero-cta";
-import { Terminal, type TerminalLine } from "@/components/ui/terminal";
+import { AnimatedSpan, Terminal, TypingAnimation } from "@/components/ui/terminal";
 import { cn } from "@/lib/utils";
 
 const card = "rounded-2xl border bg-card p-5 sm:p-6";
@@ -16,20 +16,6 @@ const FIVE: [string, string][] = [
   ["Two others countersign", "The poster may not approve their own spend. Two other members must."],
   ["The validators check each signer", "Does this payment move this member's position if it is paid? And if it is not?"],
   ["Paid, or recused", "Two clear answers pay the payee at once. A member whose interests move is refused, in public."],
-];
-
-const READING: TerminalLine[] = [
-  { text: "> approve(D1, S1)   signed by the member who part owns the print shop", tone: "cmd", typed: true },
-  { text: "  spend S1: 180 GEN to the print shop, for 500 copies of the annual report", tone: "dim" },
-  { text: "  filed before the spend: 'I own half of Pelican Press with my sister'", tone: "dim" },
-  { text: "  if the spend is carried out ......... the member GAINS", tone: "warn" },
-  { text: "  if it is not carried out ............ UNAFFECTED", tone: "dim" },
-  { text: "  stored value GU   3 validators agree", tone: "warn" },
-  { text: "x interested: recused, the refusal is published, no money moves", tone: "bad" },
-  { text: "> approve(D1, S1)   signed by the teacher", tone: "cmd", typed: true },
-  { text: "  stored value UU   3 validators agree", tone: "ok" },
-  { text: "+ clear: counted 2 of 2", tone: "ok" },
-  { text: "+ 180 GEN paid to the print shop in this transaction", tone: "ok" },
 ];
 
 export default function HomePage() {
@@ -54,7 +40,19 @@ export default function HomePage() {
             </Button>
           </div>
         </div>
-        <Terminal title="one countersignature, as the contract reads it" lines={READING} />
+        <Terminal className="max-w-none border-white/10 bg-black/60 backdrop-blur-sm">
+          <TypingAnimation duration={22} className="text-foreground">{"> approve(D1, S1)  signed by the part owner of the print shop"}</TypingAnimation>
+          <AnimatedSpan className="text-muted-foreground">  spend S1: 180 GEN to the print shop, for the annual report</AnimatedSpan>
+          <AnimatedSpan className="text-muted-foreground">  filed before the spend: I own half of Pelican Press</AnimatedSpan>
+          <AnimatedSpan className="text-gold">  if the spend is carried out ....... the member GAINS</AnimatedSpan>
+          <AnimatedSpan className="text-muted-foreground">  if it is not carried out .......... UNAFFECTED</AnimatedSpan>
+          <AnimatedSpan className="text-gold">  stored value GU   3 validators agree</AnimatedSpan>
+          <AnimatedSpan className="text-breaks">x interested: recused, published, no money moves</AnimatedSpan>
+          <TypingAnimation duration={22} className="text-foreground">{"> approve(D1, S1)  signed by the teacher"}</TypingAnimation>
+          <AnimatedSpan className="text-keeps">  stored value UU   3 validators agree</AnimatedSpan>
+          <AnimatedSpan className="text-keeps">+ clear: counted 2 of 2</AnimatedSpan>
+          <AnimatedSpan className="text-keeps">+ 180 GEN paid to the print shop in this transaction</AnimatedSpan>
+        </Terminal>
       </section>
 
       <section aria-labelledby="steps-title" className="space-y-4">

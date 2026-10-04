@@ -4,6 +4,7 @@ import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 
+import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
 import { cn } from "@/lib/utils";
 
 const candy =
@@ -46,6 +47,11 @@ export interface ButtonProps
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
+    // The main action of a page ("cool") is the interactive hover button; a link styled as one keeps
+    // the plain filled pill, because the hover button needs to own its children.
+    if (variant === "cool" && !asChild) {
+      return <InteractiveHoverButton ref={ref} className={cn(size === "sm" ? "min-h-8 px-4 py-1 text-xs" : size === "lg" ? "min-h-11 px-8" : "", className)} {...props} />;
+    }
     const Comp = asChild ? Slot : "button";
     return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />;
   },

@@ -4,6 +4,7 @@
 // characters the validators stored and the contract's sentence), and the ring of calls that were
 // refused before any reading. No wallet is needed for any of it.
 
+import { SectionHelp } from "@/components/section-help";
 import * as React from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
@@ -121,7 +122,8 @@ export default function LedgerPage() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 id="spends-title" className="text-lg font-semibold">
               Spends and their readings
-            </h2>
+        <SectionHelp k="ledger-spends" />
+      </h2>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" className="size-4 accent-[var(--primary)]" checked={onlyRecusals} onChange={(e) => setOnlyRecusals(e.target.checked)} />
               Show recusals only
@@ -174,7 +176,8 @@ export default function LedgerPage() {
         <section className={card} aria-labelledby="refusals-title">
           <h2 id="refusals-title" className="text-lg font-semibold">
             Refused before any reading
-          </h2>
+        <SectionHelp k="ledger-refusals" />
+      </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Calls the contract turned away on procedure: a poster trying to countersign their own spend, a call during the notice
             window, a second attempt. Nothing was read and no attempt was spent. This desk has turned away {d.refusals}{" "}
@@ -207,7 +210,8 @@ export default function LedgerPage() {
         <section className={card} aria-labelledby="outsiders-title">
           <h2 id="outsiders-title" className="text-lg font-semibold">
             Refused, from addresses with no disclosure on the desk they named
-          </h2>
+        <SectionHelp k="ledger-outsiders" />
+      </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             One ring for the whole register, whichever desk the caller named: somebody who is not a member trying to countersign,
             a desk that does not exist, a desk name that is too short. The most recent twelve are kept.

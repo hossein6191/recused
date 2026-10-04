@@ -34,7 +34,7 @@ export function SiteBackground() {
         swirl={0.7}
         grainOverlay={0.12}
       />
-      <div className="absolute inset-0 bg-background/70" />
+      <div className="absolute inset-0 bg-background/50" />
     </div>
   );
 }

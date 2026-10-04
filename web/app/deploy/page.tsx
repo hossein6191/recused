@@ -8,6 +8,7 @@
 // after it answers desks() like a register, and the site's own default is never stored as an
 // override: choosing it simply clears the override.
 
+import { SectionHelp } from "@/components/section-help";
 import * as React from "react";
 import Link from "next/link";
 import { ArrowRight, Check, Copy, ExternalLink, Loader2, Rocket, Undo2 } from "lucide-react";
@@ -221,7 +222,7 @@ export default function DeployPage() {
       ) : null}
 
       <section className={card}>
-        <h2 className="text-lg font-semibold">The register this browser uses</h2>
+        <h2 className="text-lg font-semibold">The register this browser uses <SectionHelp k="deploy-register" /></h2>
         {inUse ? (
           <div className="flex flex-wrap items-center gap-2">
             <code className="rounded bg-background px-2 py-1 font-mono text-xs break-all">{inUse}</code>
@@ -280,7 +281,7 @@ export default function DeployPage() {
 
       <section className={card}>
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-lg font-semibold">Contract source</h2>
+          <h2 className="text-lg font-semibold">Contract source <SectionHelp k="deploy-source" /></h2>
           <a className="text-sm text-primary underline-offset-4 hover:underline" href={CONTRACT_SOURCE_PATH} target="_blank" rel="noreferrer">
             {CONTRACT_FILE}
           </a>
@@ -313,7 +314,7 @@ export default function DeployPage() {
       </section>
 
       <section className={card}>
-        <h2 className="text-lg font-semibold">Deploy from your wallet</h2>
+        <h2 className="text-lg font-semibold">Deploy from your wallet <SectionHelp k="deploy-wallet" /></h2>
         <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
           <li>Connect a wallet (top right). The site adds GenLayer Studio, chain 61999, and switches to it.</li>
           <li>Have some test GEN: the wallet menu has a button that gets 10 from the faucet.</li>

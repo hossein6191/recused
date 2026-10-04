@@ -5,6 +5,7 @@
 // their own. Used to enrol and to amend. Every limit is checked here in the contract's own
 // terms before anything is signed, so a refusal at the door is rare and explained when it comes.
 
+import { SectionHelp } from "@/components/section-help";
 import * as React from "react";
 import { Plus, Trash2, Wand2 } from "lucide-react";
 
@@ -150,7 +151,7 @@ export function DisclosureForm({
           </p>
           <Suggest label="Start as" options={PROFILES} onPick={onChange} disabled={disabled} />
         </div>
-        <Label htmlFor="statement">Your statement</Label>
+        <Label htmlFor="statement">Your statement <SectionHelp k="form-statement" /></Label>
         <Textarea
           id="statement"
           value={value.statement}
@@ -173,7 +174,7 @@ export function DisclosureForm({
 
       <div className="space-y-3">
         <div>
-          <p className="text-sm font-medium">Entries</p>
+          <p className="text-sm font-medium">Entries <SectionHelp k="form-entries" /></p>
           <p className="text-xs text-muted-foreground">
             Name each counterparty or activity and say how you are related to it. At least {limits.entries[0]}, at most{" "}
             {limits.entries[1]}. A name made only of filler words (various, business, interests) is refused: it names nothing a
@@ -259,7 +260,7 @@ export function DisclosureForm({
 
       <div className="space-y-3">
         <div>
-          <p className="text-sm font-medium">Addresses you declare as your own (optional)</p>
+          <p className="text-sm font-medium">Addresses you declare as your own (optional) <SectionHelp k="form-addresses" /></p>
           <p className="text-xs text-muted-foreground">
             Up to {limits.declared}. A spend that pays one of them is refused to you at once, with no model asked. The address you
             enrol from counts as declared without being listed. Declaring costs nothing and buys nothing except that refusal.

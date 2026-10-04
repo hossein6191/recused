@@ -6,6 +6,7 @@
 // it, a member may countersign, and the page says what each outcome will be before they sign and
 // what happened after.
 
+import { SectionHelp } from "@/components/section-help";
 import * as React from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, FileText, PenLine, RefreshCw, Signature, TimerOff, TriangleAlert } from "lucide-react";
@@ -378,6 +379,7 @@ function DocumentCard({ state, spend }: { state: ReadState<SpendDocument | null>
     <section className={card} aria-labelledby="doc-title">
       <h2 id="doc-title" className="flex items-center gap-2 text-lg font-semibold">
         <FileText className="size-4 text-primary" /> The document the validators read
+        <SectionHelp k="spend-document" />
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Built by the contract from what it holds, by the same function the consensus round calls. Only the quoted parts were
@@ -541,6 +543,7 @@ function Identifications({
     <section className={card} aria-labelledby="idents-title">
       <h2 id="idents-title" className="text-lg font-semibold">
         Who members say the payee is
+        <SectionHelp k="spend-idents" />
       </h2>
       <div className="mt-3 space-y-3">
         {identsError && !idents.length ? <ReadError onRetry={retry} detail={identsError} compact /> : null}
@@ -744,6 +747,7 @@ function Countersign({
     <section className={cn(card, "ring-1 ring-primary/30")} aria-labelledby="sign-title">
       <h2 id="sign-title" className="flex items-center gap-2 text-lg font-semibold">
         <Signature className="size-4 text-primary" /> Countersign
+        <SectionHelp k="spend-sign" />
       </h2>
       <div className="mt-3 space-y-4">
         {body}
@@ -883,6 +887,7 @@ function ReadingsCard({ spend, readings, loading, error, retry, me }: { spend: S
     <section className={card} aria-labelledby="readings-title">
       <h2 id="readings-title" className="text-lg font-semibold">
         Countersignatures and recusals
+        <SectionHelp k="spend-readings" />
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Every attempt is stored, whatever it found, in the order it was made. The two characters are what the validators agreed on;

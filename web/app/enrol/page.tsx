@@ -4,6 +4,7 @@
 // the contract will do with it: stamp it with the next sequence number, publish it, and read it
 // only against spends posted after that number.
 
+import { SectionHelp } from "@/components/section-help";
 import * as React from "react";
 import Link from "next/link";
 import { ArrowRight, FilePenLine, FileSignature } from "lucide-react";
@@ -238,6 +239,7 @@ function Enrol({ desk, me, limits, onFiled }: { desk: Desk; me: string; limits: 
     <section className={cn(card, "space-y-5")} aria-labelledby="enrol-title">
       <h2 id="enrol-title" className="flex items-center gap-2 text-lg font-semibold">
         <FileSignature className="size-4 text-primary" /> Your disclosure
+        <SectionHelp k="enrol-file" />
       </h2>
       <DisclosureForm value={value} onChange={setValue} limits={limits} disabled={busy || !!filed} />
       <WhatHappens />
@@ -290,7 +292,8 @@ function Amend({ desk, member, limits, onFiled }: { desk: Desk; member: Member; 
       <div className="space-y-2">
         <h2 id="amend-title" className="flex items-center gap-2 text-lg font-semibold">
           <FilePenLine className="size-4 text-primary" /> Your disclosure on file
-        </h2>
+        <SectionHelp k="enrol-amend" />
+      </h2>
         <p className="text-sm text-muted-foreground">
           You are member <strong className="text-foreground">{member.number}</strong> of {desk.label}. Version {member.version},
           filed at sequence number {member.filedSeq}; the counter now stands at {desk.seqNow}. It is read against every spend

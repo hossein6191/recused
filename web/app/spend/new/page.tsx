@@ -4,6 +4,7 @@
 // enforces shown beside the field it applies to, and a plain statement of what posting sets in
 // motion before the visitor signs.
 
+import { SectionHelp } from "@/components/section-help";
 import * as React from "react";
 import Link from "next/link";
 import { ArrowRight, Send, Wand2 } from "lucide-react";
@@ -226,7 +227,8 @@ function SpendForm({ desk, member, me, limits, onPosted }: { desk: Desk; member:
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id="spend-title" className="text-lg font-semibold">
           The spend
-        </h2>
+        <SectionHelp k="spendnew-form" />
+      </h2>
       </div>
       <div className="space-y-2 rounded-xl border border-brand/25 bg-brand/5 p-3">
         <p className="flex items-center gap-1.5 text-xs font-medium">
