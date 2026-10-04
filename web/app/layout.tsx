@@ -4,6 +4,8 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 import { SiteHeader } from "@/components/site-header";
 import { SiteBackground } from "@/components/site-background";
+import { PageGuide } from "@/components/page-guide";
+import { Welcome } from "@/components/welcome";
 import { SiteFooter } from "@/components/site-footer";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/config";
 
@@ -39,7 +41,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SiteBackground />
         <Providers>
           <SiteHeader />
-          <main className="flex-1">{children}</main>
+          <Welcome />
+          <main className="flex-1">
+            <PageGuide />
+            {children}
+          </main>
           <SiteFooter />
         </Providers>
       </body>

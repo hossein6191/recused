@@ -1,5 +1,6 @@
 "use client";
 
+import { WelcomeButton } from "@/components/welcome";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -75,6 +76,7 @@ export function SiteHeader() {
           })}
         </nav>
         <div className="hidden items-center gap-3 sm:flex">
+          <WelcomeButton />
           <NetworkBadge />
           {isMock ? null : <WalletButton />}
         </div>

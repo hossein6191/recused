@@ -1,30 +1,92 @@
 import Link from "next/link";
-import { ArrowRight, BookOpenText, FlaskConical, Landmark } from "lucide-react";
+import { ArrowRight, BookOpenText } from "lucide-react";
 
 import { Guide } from "@/components/guide";
 import { TokenPair, VerdictBadge } from "@/components/reading";
 import { Button } from "@/components/ui/button";
+import { HeroCta } from "@/components/hero-cta";
+import { Terminal, type TerminalLine } from "@/components/ui/terminal";
+import { cn } from "@/lib/utils";
 
 const card = "rounded-2xl border bg-card p-5 sm:p-6";
+
+const FIVE: [string, string][] = [
+  ["Say what your interests are", "Each member files a short disclosure in advance: their work, what they own, who they are tied to."],
+  ["Someone asks the fund to pay", "A member posts a spend: who is paid, how much and what for."],
+  ["Two others countersign", "The poster may not approve their own spend. Two other members must."],
+  ["The validators check each signer", "Does this payment move this member's position if it is paid? And if it is not?"],
+  ["Paid, or recused", "Two clear answers pay the payee at once. A member whose interests move is refused, in public."],
+];
+
+const READING: TerminalLine[] = [
+  { text: "> approve(D1, S1)   signed by the member who part owns the print shop", tone: "cmd", typed: true },
+  { text: "  spend S1: 180 GEN to the print shop, for 500 copies of the annual report", tone: "dim" },
+  { text: "  filed before the spend: 'I own half of Pelican Press with my sister'", tone: "dim" },
+  { text: "  if the spend is carried out ......... the member GAINS", tone: "warn" },
+  { text: "  if it is not carried out ............ UNAFFECTED", tone: "dim" },
+  { text: "  stored value GU   3 validators agree", tone: "warn" },
+  { text: "x interested: recused, the refusal is published, no money moves", tone: "bad" },
+  { text: "> approve(D1, S1)   signed by the teacher", tone: "cmd", typed: true },
+  { text: "  stored value UU   3 validators agree", tone: "ok" },
+  { text: "+ clear: counted 2 of 2", tone: "ok" },
+  { text: "+ 180 GEN paid to the print shop in this transaction", tone: "ok" },
+];
 
 export default function HomePage() {
   return (
     <div className="container-site space-y-10 py-8 sm:py-12">
-      <section className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
+      <section className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
         <div className="space-y-5">
           <p className="text-xs font-semibold tracking-widest text-primary uppercase">A shared fund on GenLayer</p>
           <h1 className="text-3xl leading-tight font-bold tracking-tight sm:text-5xl">
-            Two countersignatures, and <span className="text-gradient">none from anyone the spend would move.</span>
+            You may not approve a payment <span className="text-gradient">that touches your own interests.</span>
           </h1>
-          <p className="max-w-2xl text-base text-foreground/85 sm:text-lg">
-            Recused is a shared fund. A spend is paid only after two members other than its poster countersign it. Every
-            member files their own interests in advance. When a member countersigns, the contract asks the validators one
-            question under both branches of the pending decision: what happens to what this member filed if the spend is
-            carried out, and what happens if it is not. If either answer moves, the member is refused and the recusal is
-            published. Two clear countersignatures send the money to the payee in that same transaction.
+          <p className="max-w-xl text-base text-foreground/85 sm:text-lg">
+            Recused is a fund several people share. A payment leaves it only when two members approve, and GenLayer&apos;s
+            validators check each approver against what that person said about themselves beforehand.
           </p>
-          <div className="rounded-xl border border-gold/40 bg-gold/10 p-4 text-sm">
-            <p className="font-semibold text-gold">The limit, before anything else</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <HeroCta />
+            <Button asChild variant="outline" size="lg">
+              <Link href="/ledger">
+                <BookOpenText /> See what already happened
+              </Link>
+            </Button>
+          </div>
+        </div>
+        <Terminal title="one countersignature, as the contract reads it" lines={READING} />
+      </section>
+
+      <section aria-labelledby="steps-title" className="space-y-4">
+        <h2 id="steps-title" className="text-xl font-semibold tracking-tight">
+          How it works, in five steps
+        </h2>
+        <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {FIVE.map(([title, body], i) => (
+            <li key={title} className={cn(card, "space-y-2 p-4 sm:p-4")}>
+              <span className="flex size-8 items-center justify-center rounded-full bg-linear-to-b from-brand to-brand-secondary text-sm font-semibold text-white">
+                {i + 1}
+              </span>
+              <p className="text-sm font-semibold">{title}</p>
+              <p className="text-xs text-muted-foreground text-pretty">{body}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-[1fr_1fr] lg:items-start">
+        <Guide />
+        <div className="space-y-4">
+          <div className={cn(card, "space-y-2")}>
+            <p className="text-sm font-semibold">What exactly is checked</p>
+            <ul className="space-y-2 text-sm text-foreground/85">
+              <li>Whether the payment changes the approver&apos;s own position if it goes ahead.</li>
+              <li>Whether it changes their position if it does not go ahead.</li>
+              <li>Three things with no model at all: you posted the spend yourself, the payee is an address you declared as yours, or your disclosure is newer than the spend.</li>
+            </ul>
+          </div>
+          <div className="rounded-2xl border border-gold/40 bg-gold/10 p-5 text-sm">
+            <p className="font-semibold text-gold">The limit, said plainly</p>
             <p className="mt-1 text-foreground/85">
               The contract reads what you filed and cannot know what you hid. A member who leaves something out reads clear,
               and so does one who files a false statement. A desk with open enrolment is not safe for money that matters:
@@ -32,25 +94,7 @@ export default function HomePage() {
               members when it is opened.
             </p>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <Button asChild variant="cool" size="lg">
-              <Link href="/practice">
-                <FlaskConical /> Try it alone: the practice desk
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link href="/desk">
-                <Landmark /> Open the desk
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link href="/ledger">
-                <BookOpenText /> Read the ledger
-              </Link>
-            </Button>
-          </div>
         </div>
-        <Guide />
       </section>
 
       <section className="grid gap-4 lg:grid-cols-3" aria-label="How it works">
