@@ -1,13 +1,11 @@
 // Site settings. One place for the register address, the desk a visitor lands on, and the name.
 //
-// DEMO_CONTRACT is the register the site reads when NEXT_PUBLIC_CONTRACT is unset. It is still the
-// version 1 register the run in tests/on_chain.md was made on; the version 2 contract in
-// public/contracts/recused.py takes other arguments, so once version 2 is deployed its address
-// replaces this one (or is set as NEXT_PUBLIC_CONTRACT). Until then the pages read the register's
-// version from rule() and say plainly that the version 2 paths need a version 2 register. With it
+// DEMO_CONTRACT is the register the site reads when NEXT_PUBLIC_CONTRACT is unset: the version 2
+// register the run in the README's "Evidence for version 2" was made on. The version 1 register,
+// 0x92cF8772718B76b765ba933dd9C97F447E65d219, stays readable on chain with its own evidence. With it
 // empty every page says "no register configured yet" and offers /deploy, and the site still works
 // in full with NEXT_PUBLIC_MOCK=1.
-export const DEMO_CONTRACT: string = "0x92cF8772718B76b765ba933dd9C97F447E65d219";
+export const DEMO_CONTRACT: string = "0x5d868BCdFeA8FB726BA70137cC5F4aE4E708E745";
 
 /** The desk the pages open when the visitor has not picked another one. */
 export const DEFAULT_DESK = "D1";
@@ -29,4 +27,4 @@ export const REGISTRY_REPO = "hossein6191/recused";
  * and for as long as the desk lives; a branch would not be. While this is empty the track says why
  * it cannot start, and nothing else on the site depends on it.
  */
-export const REGISTRY_COMMIT: string = "";
+export const REGISTRY_COMMIT: string = "e5b74f76b574cb019b7b25c78bbbf0d48568500b";

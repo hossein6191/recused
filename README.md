@@ -175,9 +175,9 @@ setting, `REGISTRY_COMMIT` in `web/lib/config.ts`, and says so until it is set;
   released, and every account ends where the money table says. The desk's hold
   is 45 minutes, and the script reads the spend before each challenge and sends
   none with less than five minutes of the hold left.
-- The offline suite has 349 tests (298 in version 1), among them seeded random
+- The offline suite has 350 tests (298 in version 1), among them seeded random
   journeys through every write that check after every step that no atto is made
-  or lost, and `tests/MUTATIONS.md` removes 389 defences in turn (282 in version
+  or lost, and `tests/MUTATIONS.md` removes 392 defences in turn (282 in version
   1), each killed by a named test.
 
 ### The new limits, stated plainly
@@ -649,10 +649,10 @@ and that nothing personal is in the site's files.
 
 ```
 pip install -r requirements-dev.txt
-python -m pytest tests/ -q -p no:cacheprovider      # 349 tests, no network
+python -m pytest tests/ -q -p no:cacheprovider      # 350 tests, no network
 genvm-lint check contracts/recused.py               # read the first line and the exit code
 genvm-lint check contracts/fixtures/countersigned.py
-python tools/mutate.py                              # 389 defences, exit 1 on a survivor
+python tools/mutate.py                              # 392 defences, exit 1 on a survivor
 ```
 
 The on-chain run needs Node:
@@ -761,7 +761,52 @@ the print shop was read `GU` and refused on a spend that paid it.
 
 ## Evidence for version 2
 
-The on-chain run is recorded here once it has run.
+Run on 14 October 2026 on GenLayer Studio (chain 61999) by `tests/on_chain/smoke.mjs`, from generated accounts funded
+from the Studio faucet: **A** Ines Corrie, **B** Mara Quist, **C** Tomas Brandt, **D** Elin Varga, the stranger **S**, and
+two payees that never sign. The register pages were the files in `registry/`, read from `raw.githubusercontent.com`
+pinned to commit `e5b74f76b574cb019b7b25c78bbbf0d48568500b`. **44 checks passed, 0 failed**; 34 transactions in 34
+steps, none sent twice; the whole log is `tests/on_chain/smoke-run-v2.log`.
+
+Register [`0x5d868BCdFeA8FB726BA70137cC5F4aE4E708E745`](https://explorer-studio.genlayer.com/address/0x5d868BCdFeA8FB726BA70137cC5F4aE4E708E745),
+Countersigned fixture [`0x47277DfC70294d6c17e4Dd209FFA7b5575aBc7aa`](https://explorer-studio.genlayer.com/address/0x47277DfC70294d6c17e4Dd209FFA7b5575aBc7aa).
+`gen_getContractCode` returns `contracts/recused.py` byte for byte (197,685 bytes, sha256
+`b8cad7974c06c79a1a22ffb14a1d3ce0e1115e18bc00441e30145b7cba4ed895`) and `contracts/fixtures/countersigned.py`
+(18,483 bytes, sha256 `25b40c358dbf0a39809cd8db870f7b40bb497b10ffd73295aa5d027d5e91d904`).
+
+| call | by | transactions | result |
+|---|---|---|---|
+| deploy `contracts/recused.py` and `contracts/fixtures/countersigned.py` | A | [0xb4c5243e…](https://explorer-studio.genlayer.com/tx/0xb4c5243ec88d3b24f99ac590033b686c6ba11af66878233b0117b52457c7612c), [0x554d5c28…](https://explorer-studio.genlayer.com/tx/0x554d5c28380037266e02dd2d9bf8b13e21eddfe8ee3e68ef590d6fe8a302b080) | both byte for byte the repository files |
+| open a desk with a 4-minute hold | A | [0x7a8c8913…](https://explorer-studio.genlayer.com/tx/0x7a8c891376441604853ae7f6e6787b50eb70c202f4379f50f0525f473da96963) | refused, `ok: false`; **the 3 GEN came back in the same transaction** |
+| open D1 with 20 GEN, the pinned `registry/` folder as its register, a 0.5 GEN stake and a 45-minute hold | A | [0xeb4ab8a7…](https://explorer-studio.genlayer.com/tx/0xeb4ab8a782b11b2da7e679e55c314439b5f8f4f60c02e6e2a264cf31ebd7ad4d) | D1 open |
+| enrol with 0.4 GEN instead of the 0.5 stake | A | [0x85c50446…](https://explorer-studio.genlayer.com/tx/0x85c50446e8e44800be1abc77a28b5717d85aef0abe20d872884c5dc69fe02508) | refused; the 0.4 GEN came back in the same transaction |
+| A, B, C and D enrol, each staking 0.5 GEN under a public name | A B C D | [0xedaebdb7…](https://explorer-studio.genlayer.com/tx/0xedaebdb777f50599a65270aad53f612223a37c51b34ecef4eb5a49b997b22920), [0x67142183…](https://explorer-studio.genlayer.com/tx/0x671421834f412da04a48fbc5d72d06df7db4adbbda1f72952ee02d76f37ab7f2), [0x17426cb4…](https://explorer-studio.genlayer.com/tx/0x17426cb4cb06eac250c58d4eac253913bd6929b09f4ebac7c875f6b3fc7dd3ce), [0x08a5f294…](https://explorer-studio.genlayer.com/tx/0x08a5f294cd3dc122312d29c8c4f97086f993fed4ae99451c69f1b63f4dadb3f8) | M1 Ines Corrie, M2 Mara Quist (part owns Pelican Press; never mentions Gull Catering), M3 Tomas Brandt, M4 Elin Varga |
+| post S1 (6 GEN to Gull Catering, refreshments), S2 (2 GEN to Pelican Press), S3 (1 GEN to A's own address) | A D | [0x08cbe2f4…](https://explorer-studio.genlayer.com/tx/0x08cbe2f494a4b0007ab28c78d1c4217af043be6eb35ed7e2a97c23d03811fc97), [0x6ac48aa2…](https://explorer-studio.genlayer.com/tx/0x6ac48aa2ef84e49faece369f11d744f83ed6b6622ce885fb6231de083084ee7e), [0x840b3f4e…](https://explorer-studio.genlayer.com/tx/0x840b3f4ede9bf44ffeefa9d2f2f54d96676f33f6ae18ba272f189c6e5179abc1) | three spends |
+| deposit 1 GEN on the Countersigned fixture, bound to S1; S deposits 0.2 GEN of bond credit | D S | [0x6d4fdf2e…](https://explorer-studio.genlayer.com/tx/0x6d4fdf2edefc94ba298b6d3e7649c4f55c2c28863e2f031deff709fd3a3c3a51), [0x2259fbcf…](https://explorer-studio.genlayer.com/tx/0x2259fbcf5dae0ee31d050d07bdb3762a21ba2920de8a925100519eb0a68a8784) | held |
+| version 1 still holds: B on the spend to her own print shop; A on a spend to its own address | B A | [0xe52a678f…](https://explorer-studio.genlayer.com/tx/0xe52a678f301541fedcd30a2b830efbeed52fe98fc6d136422b141fde9204abf8), [0xb7e910ae…](https://explorer-studio.genlayer.com/tx/0xb7e910ae8e1b830f494e20f467fcd3338f2c20905541aa5fbc3cc82b9ca3f10e) | **interested** `GU`, refused; **declared**, no model asked |
+| B and C countersign S1 | B C | [0xa24bd1b8…](https://explorer-studio.genlayer.com/tx/0xa24bd1b8d80015f0fbb83a33f53d14c28cefb94da86f1e3895116e8f0ee4ce6e), [0x81381de9…](https://explorer-studio.genlayer.com/tx/0x81381de92087cf1f3681afd90906412a20e79ebed3d1c2570a7b82d376b1f36b) | both `UU`; **S1 goes into its 45-minute hold and nothing is paid** |
+| release S1 early; the fixture settles S1 early | S | [0x5c113dcc…](https://explorer-studio.genlayer.com/tx/0x5c113dcca7ffda7a244bae918b2774f50d3ad159051514cf39bf0d7e725abfea), [0xad8aa023…](https://explorer-studio.genlayer.com/tx/0xad8aa023708a8be78f89511536f582ff8774c648283fd65dab590482189fac9e) | both refused: the hold runs, call again later |
+| challenge with a page outside the desk's register | S | [0xc36dda1f…](https://explorer-studio.genlayer.com/tx/0xc36dda1fed2212a45c4eecf49ebc1277fc5e2b75be86db796a2ac473917fc062) | refused before any page is fetched |
+| challenge B with `pelican-press-ltd.html` (names Mara Quist, but only for the shop she disclosed) | S | [0x529b0ece…](https://explorer-studio.genlayer.com/tx/0x529b0ecebd49cb8fbb8c0638fd8ff34a769911577d66aef12075d9e879584e8a) | every validator read the page: **clean** (`fp bdca0bc4860a6a72`); **the 0.05 GEN bond went to B** |
+| challenge B with `gull-catering-ltd.html` (Mara Quist, director since 2019) | S | [0x21f00dac…](https://explorer-studio.genlayer.com/tx/0x21f00dac7406706f0b9462cfc3afd21fea13f0dbcb098400599e6e21b425f501) | **hidden** (`fp 1441333413f78eb4`): B's signature struck, S1 open again, **B's 0.5 GEN stake slashed: 0.25 GEN to S in the same transaction, 0.25 GEN into the desk** |
+| D countersigns S1 | D | [0xb5b8b329…](https://explorer-studio.genlayer.com/tx/0xb5b8b329975686730945705f119681f6319036178172b0c4eaeabd80594b8ef3) | `UU`; S1 in its hold a second time |
+| challenge C with the Gull Catering page, which never names Tomas Brandt; then the same again | S | [0xdf1c6c7c…](https://explorer-studio.genlayer.com/tx/0xdf1c6c7c31c2b08462d583d57a0d3c0df25c9753ac452b9776d634e6b414ea50), [0xda02eb97…](https://explorer-studio.genlayer.com/tx/0xda02eb97ac1e0880a46c5a1806a5b0cd47e0c6af9ef0dcdb01161807883a0205) | **unclear** with no model asked (the name is not on the page), the bond stays with S; the repeat refused |
+| after the hold, release S1; the fixture settles | S | [0x18392335…](https://explorer-studio.genlayer.com/tx/0x183923350a4e66e45690ed0aab0c52dd757bf713216518cb9424f23f8c97c3aa), [0x2fe3f89d…](https://explorer-studio.genlayer.com/tx/0x2fe3f89db43fa8111e6577a852e80b48530acade2ef5d3a78f4d949360f9ddd9) | **Gull Catering paid 6 GEN in that transaction**; the fixture paid its 1 GEN deposit to Gull Catering |
+| routes out: B restakes, A retires and withdraws its stake, S withdraws its credit | B A S | [0x2d3b4c73…](https://explorer-studio.genlayer.com/tx/0x2d3b4c73416a33d136e8c66f722c7f40df9fbbda2ca6f4d6e8f4d4c8b9590342), [0xda5f82d3…](https://explorer-studio.genlayer.com/tx/0xda5f82d3df3f0c08b5b7fd9522b357b72b42a59e6da606486126f099be1b766b), [0x7394fed4…](https://explorer-studio.genlayer.com/tx/0x7394fed462edd4d8dc626788b36a764774e446a827db20c4e5c449491a41496b), [0xf3dabd82…](https://explorer-studio.genlayer.com/tx/0xf3dabd8251403b13fb7b390dedb41dd740c24d213071aeea9ce21f43e389e0be) | B may sign again; A's 0.5 GEN back; S's 0.15 GEN back |
+| expire S2 and S3 | S | [0xd419de0f…](https://explorer-studio.genlayer.com/tx/0xd419de0f445e49ef89127ff0733407f48d821a37aa85a179a1a438928b3cfe5c), [0x705a505f…](https://explorer-studio.genlayer.com/tx/0x705a505f9ae470ce743a23c973ffa9bbe64b36149dfb955b5b5e9b66bbd148cd) | expired; no money left the desk |
+
+At the end `challenges_of(S1)` read clean against B on the Pelican Press page, hidden against B and unclear against C
+on the Gull Catering page (one fingerprint for that page, whoever it was cited against); `reading(S1, B)` was kept
+for the record, marked struck by challenge 2; B's public record read one hidden conflict and one challenge not borne
+out. The desk ended with 14.25 GEN in the pot (20 less the 6 paid, plus the 0.25 slashed in), 1.5 GEN staked and nothing
+committed, and every account where the money table says: A down 20 GEN (the pot it funded), B down 0.95 (the half
+of her stake that went to the whistleblower and the half that went to the desk, less the 0.05 bond she won), C and D
+down only their stakes, and S up 0.2 GEN (the 0.25 bounty less the 0.05 bond it paid for the wrong accusation).
+
+How the run went: the first pass ended 43 of 44, because the script still expected an earlier wording of SILENT in
+`rule()`. The check was corrected and the run resumed from its saved state; it read that one view again from the
+same register and sent no transaction. An earlier run on another register (`0xf2F10265…7f36`), with SILENT asked as
+one compound question that also checked the name, read the Pelican Press page unclear instead of clean; that is why
+the name is now matched in code and SILENT asks one thing (`DECISIONS.md`).
 
 ## Licence
 

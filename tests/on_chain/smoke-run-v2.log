@@ -1,0 +1,199 @@
+[keeper] starting 2026-10-14T15:37:16.696Z
+[15:37:36] 0xd564F4C1cdAD36daE9C1cC06f522363f6514755A  A, Ines Corrie: opens the desk, keeps the minutes
+           0xF0Ae32F146B187450d2fa97f5Fa528F5b8344356  B, Mara Quist: part owns Pelican Press, never mentions Gull Catering
+           0x1502B8E16db11ee7F49Aa536E33277739762d6A5  C, Tomas Brandt: chairs the bike group
+           0xB4C6556bc2903E3F611a6C4E8919857eA923dD32  D, Elin Varga: teaches at the school
+           0x65d2b5996f81b7c81999a0BB4936F2dfFbbdA26c  S: a stranger who never enrols
+           payees, which never sign: Gull Catering 0xedad650106d6d8ee7dfa89163cafb4a5ac436bb3  Pelican Press 0xba3caf1768b10b6ff9c2cfcdadd1f92ba3f4679f
+           register https://raw.githubusercontent.com/hossein6191/recused/e5b74f76b574cb019b7b25c78bbbf0d48568500b/registry/
+
+[15:37:36] ---- phase A: deploy, open the desk, enrol with a stake
+      [15:38:19] A deploy recused.py  0xb4c5243ec88d3b24f99ac590033b686c6ba11af66878233b0117b52457c7612c  3 agree, 0 disagree, 2 idle  SUCCESS  0x5d868BCdFeA8FB726BA70137cC5F4aE4E708E745
+      [15:39:00] A deploy countersigned.py  0x554d5c28380037266e02dd2d9bf8b13e21eddfe8ee3e68ef590d6fe8a302b080  3 agree, 0 disagree, 2 idle  SUCCESS  0x47277DfC70294d6c17e4Dd209FFA7b5575aBc7aa
+      Recused at 0x5d868BCdFeA8FB726BA70137cC5F4aE4E708E745, Countersigned at 0x47277DfC70294d6c17e4Dd209FFA7b5575aBc7aa
+      [15:39:40] A open_desk(Pelican Street mut, , 5, ["https://raw.gith, 500000000000000000, 4) +3 GEN  0x7a8c891376441604853ae7f6e6787b50eb70c202f4379f50f0525f473da96963  3 agree, 0 disagree, 2 idle  SUCCESS
+PASS  a desk whose hold is under five minutes is refused, and the 3 GEN sent with it comes back in that transaction  - the hold is 5 to 10080 minutes: how long a spend carried by two clear readings waits, open
+      [15:40:59] A open_desk(Pelican Street mut, , 5, ["https://raw.gith, 500000000000000000, 45) +20 GEN  0xeb4ab8a782b11b2da7e679e55c314439b5f8f4f60c02e6e2a264cf31ebd7ad4d  4 agree, 0 disagree, 1 idle  SUCCESS
+PASS  the desk is opened with 20 GEN, the pinned registry/ folder as its register, a stake of 0.5 GEN and a hold of 45 minutes  - {"ok":true,"desk":"D1","label":"Pelican Street mutual fund","opener":"0xd564f4c1cdad36dae9c1cc06f522363f6514755a","roster":[],"open_enrolment":true,"pot":"20000000000000000000","seq":1,"min_notice_min
+      [15:42:11] A enrol(D1, I keep the minutes, [{"name":"Pelican , , Ines Corrie) +0 GEN  0x85c50446e8e44800be1abc77a28b5717d85aef0abe20d872884c5dc69fe02508  5 agree, 0 disagree, 0 idle  SUCCESS
+PASS  an enrolment that sends 0.4 GEN instead of the desk's 0.5 is refused, and the 0.4 GEN comes back in the same transaction  - enrolling on D1 stakes exactly 500000000000000000 atto, the member stake fixed when the desk was ope
+      [15:42:49] A enrol(D1, I keep the minutes, [{"name":"Pelican , , Ines Corrie) +0 GEN  0xedaebdb777f50599a65270aad53f612223a37c51b34ecef4eb5a49b997b22920  5 agree, 0 disagree, 0 idle  SUCCESS
+      [15:43:30] B enrol(D1, I co-own Pelican P, [{"name":"Pelican , , Mara Quist) +0 GEN  0x671421834f412da04a48fbc5d72d06df7db4adbbda1f72952ee02d76f37ab7f2  3 agree, 0 disagree, 2 idle  SUCCESS
+      [15:44:13] C enrol(D1, I chair the tenant, [{"name":"Pelican , , Tomas Brandt) +0 GEN  0x17426cb4cb06eac250c58d4eac253913bd6929b09f4ebac7c875f6b3fc7dd3ce  3 agree, 0 disagree, 2 idle  SUCCESS
+      [15:44:58] D enrol(D1, I teach at the loc, [{"name":"Hillside, , Elin Varga) +0 GEN  0x08a5f294cd3dc122312d29c8c4f97086f993fed4ae99451c69f1b63f4dadb3f8  4 agree, 0 disagree, 1 idle  SUCCESS
+PASS  A, B, C and D enrol, each staking 0.5 GEN under the name a public register would list them under  - M1:Ines Corrie  M2:Mara Quist  M3:Tomas Brandt  M4:Elin Varga
+
+[15:44:59] ---- phase B: three spends, a deposit bound to the first, and bond credit
+      [15:45:41] A post_spend(D1, 0xedad650106d6d8ee, 600000000000000000, Refreshments for t, 5, 180)  0x08cbe2f494a4b0007ab28c78d1c4217af043be6eb35ed7e2a97c23d03811fc97  4 agree, 0 disagree, 1 idle  SUCCESS
+      [15:46:22] D post_spend(D1, 0xba3caf1768b10b6f, 200000000000000000, Print the minutes , 5, 20)  0x6ac48aa2ef84e49faece369f11d744f83ed6b6622ce885fb6231de083084ee7e  3 agree, 0 disagree, 2 idle  SUCCESS
+      [15:47:03] D post_spend(D1, 0xd564f4c1cdad36da, 100000000000000000, Repay Ines Corrie , 5, 20)  0x840b3f4ede9bf44ffeefa9d2f2f54d96676f33f6ae18ba272f189c6e5179abc1  3 agree, 0 disagree, 2 idle  SUCCESS
+PASS  S1 pays Gull Catering 6 GEN for refreshments, S2 pays Pelican Press 2 GEN, S3 pays A's own address 1 GEN  - S1:6000000000000000000 S2:2000000000000000000 S3:1000000000000000000
+      [15:47:50] D deposit(D1, 1, 0xedad650106d6d8ee, dfef49c94f4a8c5b69) +1 GEN  0x6d4fdf2edefc94ba298b6d3e7649c4f55c2c28863e2f031deff709fd3a3c3a51  4 agree, 0 disagree, 1 idle  SUCCESS
+PASS  D deposits 1 GEN on the Countersigned fixture, bound to S1, its payee and its document digest  - {"ok":true,"deposit":"1","by":"0xb4c6556bc2903e3f611a6c4e8919857ea923dd32","desk":"D1","spend":"S1","payee":"0xedad65010
+      [15:48:27] S deposit() +0 GEN  0x2259fbcf5dae0ee31d050d07bdb3762a21ba2920de8a925100519eb0a68a8784  5 agree, 0 disagree, 0 idle  SUCCESS
+PASS  S, who never enrols, deposits 0.2 GEN of bond credit  - {"ok":true,"address":"0x65d2b5996f81b7c81999a0bb4936f2dffbbda26c","added":"200000000000000000","bond_credit":"200000000000000000","challenges_covered":4}
+
+[15:48:28] ---- phase C: version 1 still holds, and two clear readings put S1 in its hold
+      [15:53:06] B approve(D1, 2)  0xe52a678f301541fedcd30a2b830efbeed52fe98fc6d136422b141fde9204abf8  3 agree, 0 disagree, 2 idle  SUCCESS
+PASS  B, who part owns Pelican Press, is not read clear on the spend that pays it (interested, or unclear), and is refused with her attempt spent  - 3 agree, 0 disagree, 2 idle interested value GU
+      [15:53:44] A approve(D1, 3)  0xb7e910ae8e1b830f494e20f467fcd3338f2c20905541aa5fbc3cc82b9ca3f10e  3 agree, 0 disagree, 2 idle  SUCCESS
+PASS  A's countersignature on a spend that pays A's own address is declared, with no model asked  - 3 agree, 0 disagree, 2 idle declared
+      [15:55:37] B approve(D1, 1)  0xa24bd1b8d80015f0fbb83a33f53d14c28cefb94da86f1e3895116e8f0ee4ce6e  3 agree, 1 disagree, 0 idle  SUCCESS
+PASS  B reads clear on S1, because her disclosure names Pelican Press and nothing about Gull Catering: 1 of 2  - 3 agree, 1 disagree, 0 idle value UU
+      [15:56:27] C approve(D1, 1)  0x81381de92087cf1f3681afd90906412a20e79ebed3d1c2570a7b82d376b1f36b  3 agree, 0 disagree, 2 idle  SUCCESS
+PASS  C reads clear on S1: 2 of 2, and S1 goes into its hold of 45 minutes  - 3 agree, 0 disagree, 2 idle value UU hold_until 1791996039
+PASS  and nothing has reached Gull Catering  - 0 atto
+      [15:57:03] S release(D1, 1)  0x5c113dcca7ffda7a244bae918b2774f50d3ad159051514cf39bf0d7e725abfea  5 agree, 0 disagree, 0 idle  ERROR
+PASS  release before the hold has ended is refused  - [EXPECTED] the hold of S1 runs to 1791996039, another 2650 seconds; until then anyone may cite a pag
+      [15:57:42] S release(1)  0xad8aa023708a8be78f89511536f582ff8774c648283fd65dab590482189fac9e  3 agree, 0 disagree, 2 idle  ERROR
+PASS  and the fixture will not settle a spend in its hold: call again later  - [EXPECTED] S1 on D1 is holding; nothing is settled before the desk pays it or its window ends, so ca
+
+[15:57:42] ---- phase D: a public register page, read on the live web by every validator
+      [15:58:26] S challenge(D1, 1, M2, https://raw.github)  0xc36dda1fed2212a45c4eecf49ebc1277fc5e2b75be86db796a2ac473917fc062  5 agree, 0 disagree, 0 idle  ERROR
+PASS  a challenge citing a page outside the desk's register is refused before any page is fetched  - [EXPECTED] the page is not below one of the registers D1 named when it was opened (https://raw.githubuserconte
+      [15:58:27] 2533s of the hold of D1 S1 are left for d2
+      [15:59:48] S challenge(D1, 1, M2, https://raw.github)  0x529b0ecebd49cb8fbb8c0638fd8ff34a769911577d66aef12075d9e879584e8a  3 agree, 2 disagree, 0 idle  SUCCESS
+PASS  S cites pelican-press-ltd.html against B: it names Mara Quist, but only for the print shop her disclosure names, and says nothing about Gull Catering: clean  - 3 agree, 2 disagree, 0 idle  {"verdict":"clean","fp":"bdca0bc4860a6a72"}
+PASS  and the 0.05 GEN bond reached B from that transaction, out of S's credit  - 50000000000000000 atto
+      note: the stored fingerprint bdca0bc4860a6a72; this checkout's page, read as its source, gives bdca0bc4860a6a72
+      [15:59:50] 2450s of the hold of D1 S1 are left for d3
+      [16:01:07] S challenge(D1, 1, M2, https://raw.github)  0x21f00dac7406706f0b9462cfc3afd21fea13f0dbcb098400599e6e21b425f501  3 agree, 1 disagree, 1 idle  SUCCESS
+PASS  S cites gull-catering-ltd.html against B, Mara Quist, a director of Gull Catering since 2019 whose disclosure never mentions it: hidden  - 3 agree, 1 disagree, 1 idle  {"verdict":"hidden","fp":"1441333413f78eb4"}
+      note: the stored fingerprint 1441333413f78eb4; this checkout's page, read as its source, gives 1441333413f78eb4
+PASS  B's signature is struck, the hold ends and S1 is open again, needing one more clear reading  - {"state_after":"open","approvals":1}
+PASS  B's whole stake is slashed: 0.25 GEN reached S from that transaction, and the bond stayed in S's credit  - 250000000000000000 atto
+PASS  and the other 0.25 GEN went into the desk  - {"pot":"20250000000000000000","staked":"1500000000000000000","slashed_in":"250000000000000000"}
+PASS  B's public record: one challenge not borne out, one signature struck, and a stake that is no longer whole  - {"hidden":1,"cleared":1,"stake":"0"}
+
+[16:01:17] ---- phase E: a second hold, a page that names nobody on it, the release, and every route out
+      [16:02:17] D approve(D1, 1)  0xb5b8b329975686730945705f119681f6319036178172b0c4eaeabd80594b8ef3  3 agree, 0 disagree, 2 idle  SUCCESS
+PASS  D reads clear on S1: 2 of 2 again, and S1 is in its hold a second time  - 3 agree, 0 disagree, 2 idle value UU
+      [16:02:19] 2641s of the hold of D1 S1 are left for e2
+      [16:02:59] S challenge(D1, 1, M3, https://raw.github)  0xdf1c6c7c31c2b08462d583d57a0d3c0df25c9753ac452b9776d634e6b414ea50  3 agree, 0 disagree, 2 idle  SUCCESS
+PASS  S cites gull-catering-ltd.html against C, Tomas Brandt, whose name is not on it: unclear, and the bond stays in S's credit  - 3 agree, 0 disagree, 2 idle  {"verdict":"unclear","fp":"1441333413f78eb4"}
+PASS  a page that never names a member can neither strike that member nor pay them a bond: S1 is still in its hold  - {"state_after":"holding"}
+      [16:03:39] S challenge(D1, 1, M3, https://raw.github)  0xda02eb97ac1e0880a46c5a1806a5b0cd47e0c6af9ef0dcdb01161807883a0205  5 agree, 0 disagree, 0 idle  ERROR
+PASS  the same page cited against C again is refused: each page is read once against each signature  - [EXPECTED] this page was already read against the signature of M3 on S1, as challenge 3; each page is read onc
+      [16:47:19] S release(D1, 1)  0x183923350a4e66e45690ed0aab0c52dd757bf713216518cb9424f23f8c97c3aa  3 agree, 0 disagree, 2 idle  SUCCESS
+PASS  once the hold has run out S, who signed nothing, releases S1, and Gull Catering is paid 6 GEN in that transaction  - 6000000000000000000 atto
+      [16:47:57] S release(1)  0x2fe3f89db43fa8111e6577a852e80b48530acade2ef5d3a78f4d949360f9ddd9  3 agree, 0 disagree, 2 idle  SUCCESS
+PASS  the Countersigned fixture pays its 1 GEN deposit on S1 to Gull Catering: paid, with two counted readings, UU and unstruck  - {"ok":true,"deposit":"1","state":"released","to":"0xedad650106d6d8ee7dfa89163cafb4a5ac436bb3","amount":"1000000000000000000","reason":"S1 wa
+      [16:49:09] B restake(D1) +0 GEN  0x2d3b4c73416a33d136e8c66f722c7f40df9fbbda2ca6f4d6e8f4d4c8b9590342  3 agree, 0 disagree, 2 idle  SUCCESS
+PASS  B restakes the 0.5 GEN that was slashed, and may countersign again  - {"ok":true,"desk":"D1","member":"M2","who":"0xf0ae32f146b187450d2fa97f5fa528f5b8344356","added":"500000000000000000","stake":"500000000000000000","whole":true}
+      [16:49:45] A retire(D1)  0xda5f82d3df3f0c08b5b7fd9522b357b72b42a59e6da606486126f099be1b766b  3 agree, 0 disagree, 2 idle  SUCCESS
+      [16:50:21] A withdraw_stake(D1)  0x7394fed462edd4d8dc626788b36a764774e446a827db20c4e5c449491a41496b  3 agree, 0 disagree, 2 idle  SUCCESS
+PASS  A retires from countersigning and takes its 0.5 GEN stake back  - {"ok":true,"desk":"D1","member":"M1","who":"0xd564f4c1cdad36dae9c1cc06f522363f6514755a","withdrawn":"500000000000000000","stake":"0"}
+      [16:51:01] S withdraw()  0xf3dabd8251403b13fb7b390dedb41dd740c24d213071aeea9ce21f43e389e0be  3 agree, 0 disagree, 2 idle  SUCCESS
+PASS  S takes back its bond credit: 0.15 GEN, the 0.2 it put in less the bond paid to B  - {"ok":true,"address":"0x65d2b5996f81b7c81999a0bb4936f2dffbbda26c","withdrawn":"150000000000000000","bond_credit":"0"}
+      [16:51:48] S expire(D1, 2)  0xd419de0f445e49ef89127ff0733407f48d821a37aa85a179a1a438928b3cfe5c  3 agree, 0 disagree, 2 idle  SUCCESS
+      [16:52:26] S expire(D1, 3)  0x705a505f9ae470ce743a23c973ffa9bbe64b36149dfb955b5b5e9b66bbd148cd  5 agree, 0 disagree, 0 idle  SUCCESS
+PASS  S2 and S3 expire, and no money leaves the desk  - expired expired
+
+[16:52:26] ---- phase F: what is on the chain, read back
+PASS  the code deployed at 0x5d868BCdFeA8FB726BA70137cC5F4aE4E708E745 is byte for byte contracts/recused.py  - 197685 bytes, sha256 b8cad7974c06c79a1a22ffb14a1d3ce0e1115e18bc00441e30145b7cba4ed895
+PASS  the code deployed at 0x47277DfC70294d6c17e4Dd209FFA7b5575aBc7aa is byte for byte contracts/fixtures/countersigned.py  - 18483 bytes, sha256 25b40c358dbf0a39809cd8db870f7b40bb497b10ffd73295aa5d027d5e91d904
+PASS  spend(S1): paid after two holds, one signature struck, three challenges read, counted readings C and D both UU and unstruck  - {"state":"paid","holds":2,"struck":1}
+PASS  challenges_of(S1): clean against B on the Pelican Press page, hidden against B and unclear against C on the Gull Catering page, which kept one fingerprint  - M2:clean:bdca0bc4860a6a72 M2:hidden:1441333413f78eb4 M3:unclear:1441333413f78eb4
+PASS  reading(S1, B): kept for the record, marked struck by challenge 2  - {"struck":true,"struck_by":"challenge 2"}
+PASS  member records: B one signature struck, one challenge not borne out, and restaked; C neither; A retired with no stake  - {"B":[1,1,"500000000000000000"],"C":[0,0],"A":[true,"0"]}
+PASS  desk(D1): 14.25 GEN in the pot, 1.5 GEN staked, nothing committed, one spend paid and two expired  - {"pot":"14250000000000000000","staked":"1500000000000000000","committed":"0"}
+PASS  stats(): three challenges read, one hidden, one cleared, one unclear, one release, 0.25 GEN of bounty, 0.05 GEN of bond to a member, no credit left  - {"desks":1,"sequence":8,"challenges":3,"hidden":1,"cleared":1,"unclear":1,"released":1,"bond_credit":"0","bounties_paid":"250000000000000000","bonds_to_members":"50000000000000000","open_refusals_recorded":2}
+FAIL  rule(): the register round in words, with both questions, the combine rule and the money table  - when,who,page,documents,questions,askings,combine,compared,money,once,limits
+PASS  the fixture: bound to this register, one deposit, released  - {"deposits":1,"state":"released"}
+PASS  every account ends where the money table says: A -20, B -0.95, C -0.5, D -1.5, S +0.2 GEN  - A -20000000000000000000  B -950000000000000000  C -500000000000000000  D -1500000000000000000  S 200000000000000000
+PASS  Gull Catering holds 7 GEN, Pelican Press nothing, and the register holds the pot and the stakes: 15.75 GEN  - {"P":"7000000000000000000","Q":"0","recused":"15750000000000000000","fixture":"0"}
+
+43 passed, 1 failed
+Recused: 0x5d868BCdFeA8FB726BA70137cC5F4aE4E708E745 - Countersigned: 0x47277DfC70294d6c17e4Dd209FFA7b5575aBc7aa - register pages at https://raw.githubusercontent.com/hossein6191/recused/e5b74f76b574cb019b7b25c78bbbf0d48568500b/registry/
+transactions: 34 in 34 steps; sent a second time: none
+c1     0xe52a678f301541fedcd30a2b830efbeed52fe98fc6d136422b141fde9204abf8 3 agree, 0 disagree, 2 idle  interested GU
+c2     0xb7e910ae8e1b830f494e20f467fcd3338f2c20905541aa5fbc3cc82b9ca3f10e 3 agree, 0 disagree, 2 idle  declared --
+c3     0xa24bd1b8d80015f0fbb83a33f53d14c28cefb94da86f1e3895116e8f0ee4ce6e 3 agree, 1 disagree, 0 idle  clear UU
+c4     0x81381de92087cf1f3681afd90906412a20e79ebed3d1c2570a7b82d376b1f36b 3 agree, 0 disagree, 2 idle  clear UU
+d2     0x529b0ecebd49cb8fbb8c0638fd8ff34a769911577d66aef12075d9e879584e8a 3 agree, 2 disagree, 0 idle  clean bdca0bc4860a6a72
+d3     0x21f00dac7406706f0b9462cfc3afd21fea13f0dbcb098400599e6e21b425f501 3 agree, 1 disagree, 1 idle  hidden 1441333413f78eb4
+e1     0xb5b8b329975686730945705f119681f6319036178172b0c4eaeabd80594b8ef3 3 agree, 0 disagree, 2 idle  clear UU
+e2     0xdf1c6c7c31c2b08462d583d57a0d3c0df25c9753ac452b9776d634e6b414ea50 3 agree, 0 disagree, 2 idle  unclear 1441333413f78eb4
+
+exit 1
+[keeper] resuming 2026-10-14T16:53:51.296Z
+[16:53:53] 0xd564F4C1cdAD36daE9C1cC06f522363f6514755A  A, Ines Corrie: opens the desk, keeps the minutes
+           0xF0Ae32F146B187450d2fa97f5Fa528F5b8344356  B, Mara Quist: part owns Pelican Press, never mentions Gull Catering
+           0x1502B8E16db11ee7F49Aa536E33277739762d6A5  C, Tomas Brandt: chairs the bike group
+           0xB4C6556bc2903E3F611a6C4E8919857eA923dD32  D, Elin Varga: teaches at the school
+           0x65d2b5996f81b7c81999a0BB4936F2dfFbbdA26c  S: a stranger who never enrols
+           payees, which never sign: Gull Catering 0xedad650106d6d8ee7dfa89163cafb4a5ac436bb3  Pelican Press 0xba3caf1768b10b6ff9c2cfcdadd1f92ba3f4679f
+           register https://raw.githubusercontent.com/hossein6191/recused/e5b74f76b574cb019b7b25c78bbbf0d48568500b/registry/
+
+[16:53:53] ---- phase A: deploy, open the desk, enrol with a stake
+      Recused at 0x5d868BCdFeA8FB726BA70137cC5F4aE4E708E745, Countersigned at 0x47277DfC70294d6c17e4Dd209FFA7b5575aBc7aa
+PASS  a desk whose hold is under five minutes is refused, and the 3 GEN sent with it comes back in that transaction  - the hold is 5 to 10080 minutes: how long a spend carried by two clear readings waits, open
+PASS  the desk is opened with 20 GEN, the pinned registry/ folder as its register, a stake of 0.5 GEN and a hold of 45 minutes  - {"ok":true,"desk":"D1","label":"Pelican Street mutual fund","opener":"0xd564f4c1cdad36dae9c1cc06f522363f6514755a","roster":[],"open_enrolment":true,"pot":"20000000000000000000","seq":1,"min_notice_min
+PASS  an enrolment that sends 0.4 GEN instead of the desk's 0.5 is refused, and the 0.4 GEN comes back in the same transaction  - enrolling on D1 stakes exactly 500000000000000000 atto, the member stake fixed when the desk was ope
+PASS  A, B, C and D enrol, each staking 0.5 GEN under the name a public register would list them under  - M1:Ines Corrie  M2:Mara Quist  M3:Tomas Brandt  M4:Elin Varga
+
+[16:53:53] ---- phase B: three spends, a deposit bound to the first, and bond credit
+PASS  S1 pays Gull Catering 6 GEN for refreshments, S2 pays Pelican Press 2 GEN, S3 pays A's own address 1 GEN  - S1:6000000000000000000 S2:2000000000000000000 S3:1000000000000000000
+PASS  D deposits 1 GEN on the Countersigned fixture, bound to S1, its payee and its document digest  - {"ok":true,"deposit":"1","by":"0xb4c6556bc2903e3f611a6c4e8919857ea923dd32","desk":"D1","spend":"S1","payee":"0xedad65010
+PASS  S, who never enrols, deposits 0.2 GEN of bond credit  - {"ok":true,"address":"0x65d2b5996f81b7c81999a0bb4936f2dffbbda26c","added":"200000000000000000","bond_credit":"200000000000000000","challenges_covered":4}
+
+[16:53:53] ---- phase C: version 1 still holds, and two clear readings put S1 in its hold
+PASS  B, who part owns Pelican Press, is not read clear on the spend that pays it (interested, or unclear), and is refused with her attempt spent  - 3 agree, 0 disagree, 2 idle interested value GU
+PASS  A's countersignature on a spend that pays A's own address is declared, with no model asked  - 3 agree, 0 disagree, 2 idle declared
+PASS  B reads clear on S1, because her disclosure names Pelican Press and nothing about Gull Catering: 1 of 2  - 3 agree, 1 disagree, 0 idle value UU
+PASS  C reads clear on S1: 2 of 2, and S1 goes into its hold of 45 minutes  - 3 agree, 0 disagree, 2 idle value UU hold_until 1791996039
+PASS  and nothing has reached Gull Catering  - 0 atto
+PASS  release before the hold has ended is refused  - [EXPECTED] the hold of S1 runs to 1791996039, another 2650 seconds; until then anyone may cite a pag
+PASS  and the fixture will not settle a spend in its hold: call again later  - [EXPECTED] S1 on D1 is holding; nothing is settled before the desk pays it or its window ends, so ca
+
+[16:53:54] ---- phase D: a public register page, read on the live web by every validator
+PASS  a challenge citing a page outside the desk's register is refused before any page is fetched  - [EXPECTED] the page is not below one of the registers D1 named when it was opened (https://raw.githubuserconte
+PASS  S cites pelican-press-ltd.html against B: it names Mara Quist, but only for the print shop her disclosure names, and says nothing about Gull Catering: clean  - 3 agree, 2 disagree, 0 idle  {"verdict":"clean","fp":"bdca0bc4860a6a72"}
+PASS  and the 0.05 GEN bond reached B from that transaction, out of S's credit  - 50000000000000000 atto
+      note: the stored fingerprint bdca0bc4860a6a72; this checkout's page, read as its source, gives bdca0bc4860a6a72
+PASS  S cites gull-catering-ltd.html against B, Mara Quist, a director of Gull Catering since 2019 whose disclosure never mentions it: hidden  - 3 agree, 1 disagree, 1 idle  {"verdict":"hidden","fp":"1441333413f78eb4"}
+      note: the stored fingerprint 1441333413f78eb4; this checkout's page, read as its source, gives 1441333413f78eb4
+PASS  B's signature is struck, the hold ends and S1 is open again, needing one more clear reading  - {"state_after":"open","approvals":1}
+PASS  B's whole stake is slashed: 0.25 GEN reached S from that transaction, and the bond stayed in S's credit  - 250000000000000000 atto
+PASS  and the other 0.25 GEN went into the desk  - {"pot":"20250000000000000000","staked":"1500000000000000000","slashed_in":"250000000000000000"}
+PASS  B's public record: one challenge not borne out, one signature struck, and a stake that is no longer whole  - {"hidden":1,"cleared":1,"stake":"0"}
+
+[16:53:54] ---- phase E: a second hold, a page that names nobody on it, the release, and every route out
+PASS  D reads clear on S1: 2 of 2 again, and S1 is in its hold a second time  - 3 agree, 0 disagree, 2 idle value UU
+PASS  S cites gull-catering-ltd.html against C, Tomas Brandt, whose name is not on it: unclear, and the bond stays in S's credit  - 3 agree, 0 disagree, 2 idle  {"verdict":"unclear","fp":"1441333413f78eb4"}
+PASS  a page that never names a member can neither strike that member nor pay them a bond: S1 is still in its hold  - {"state_after":"holding"}
+PASS  the same page cited against C again is refused: each page is read once against each signature  - [EXPECTED] this page was already read against the signature of M3 on S1, as challenge 3; each page is read onc
+PASS  once the hold has run out S, who signed nothing, releases S1, and Gull Catering is paid 6 GEN in that transaction  - 6000000000000000000 atto
+PASS  the Countersigned fixture pays its 1 GEN deposit on S1 to Gull Catering: paid, with two counted readings, UU and unstruck  - {"ok":true,"deposit":"1","state":"released","to":"0xedad650106d6d8ee7dfa89163cafb4a5ac436bb3","amount":"1000000000000000000","reason":"S1 wa
+PASS  B restakes the 0.5 GEN that was slashed, and may countersign again  - {"ok":true,"desk":"D1","member":"M2","who":"0xf0ae32f146b187450d2fa97f5fa528f5b8344356","added":"500000000000000000","stake":"500000000000000000","whole":true}
+PASS  A retires from countersigning and takes its 0.5 GEN stake back  - {"ok":true,"desk":"D1","member":"M1","who":"0xd564f4c1cdad36dae9c1cc06f522363f6514755a","withdrawn":"500000000000000000","stake":"0"}
+PASS  S takes back its bond credit: 0.15 GEN, the 0.2 it put in less the bond paid to B  - {"ok":true,"address":"0x65d2b5996f81b7c81999a0bb4936f2dffbbda26c","withdrawn":"150000000000000000","bond_credit":"0"}
+PASS  S2 and S3 expire, and no money leaves the desk  - expired expired
+
+[16:54:04] ---- phase F: what is on the chain, read back
+PASS  the code deployed at 0x5d868BCdFeA8FB726BA70137cC5F4aE4E708E745 is byte for byte contracts/recused.py  - 197685 bytes, sha256 b8cad7974c06c79a1a22ffb14a1d3ce0e1115e18bc00441e30145b7cba4ed895
+PASS  the code deployed at 0x47277DfC70294d6c17e4Dd209FFA7b5575aBc7aa is byte for byte contracts/fixtures/countersigned.py  - 18483 bytes, sha256 25b40c358dbf0a39809cd8db870f7b40bb497b10ffd73295aa5d027d5e91d904
+PASS  spend(S1): paid after two holds, one signature struck, three challenges read, counted readings C and D both UU and unstruck  - {"state":"paid","holds":2,"struck":1}
+PASS  challenges_of(S1): clean against B on the Pelican Press page, hidden against B and unclear against C on the Gull Catering page, which kept one fingerprint  - M2:clean:bdca0bc4860a6a72 M2:hidden:1441333413f78eb4 M3:unclear:1441333413f78eb4
+PASS  reading(S1, B): kept for the record, marked struck by challenge 2  - {"struck":true,"struck_by":"challenge 2"}
+PASS  member records: B one signature struck, one challenge not borne out, and restaked; C neither; A retired with no stake  - {"B":[1,1,"500000000000000000"],"C":[0,0],"A":[true,"0"]}
+PASS  desk(D1): 14.25 GEN in the pot, 1.5 GEN staked, nothing committed, one spend paid and two expired  - {"pot":"14250000000000000000","staked":"1500000000000000000","committed":"0"}
+PASS  stats(): three challenges read, one hidden, one cleared, one unclear, one release, 0.25 GEN of bounty, 0.05 GEN of bond to a member, no credit left  - {"desks":1,"sequence":8,"challenges":3,"hidden":1,"cleared":1,"unclear":1,"released":1,"bond_credit":"0","bounties_paid":"250000000000000000","bonds_to_members":"50000000000000000","open_refusals_recorded":2}
+PASS  rule(): the register round in words, with both questions, the combine rule and the money table  - when,who,page,documents,questions,askings,combine,compared,money,once,limits
+PASS  the fixture: bound to this register, one deposit, released  - {"deposits":1,"state":"released"}
+PASS  every account ends where the money table says: A -20, B -0.95, C -0.5, D -1.5, S +0.2 GEN  - A -20000000000000000000  B -950000000000000000  C -500000000000000000  D -1500000000000000000  S 200000000000000000
+PASS  Gull Catering holds 7 GEN, Pelican Press nothing, and the register holds the pot and the stakes: 15.75 GEN  - {"P":"7000000000000000000","Q":"0","recused":"15750000000000000000","fixture":"0"}
+
+44 passed, 0 failed
+Recused: 0x5d868BCdFeA8FB726BA70137cC5F4aE4E708E745 - Countersigned: 0x47277DfC70294d6c17e4Dd209FFA7b5575aBc7aa - register pages at https://raw.githubusercontent.com/hossein6191/recused/e5b74f76b574cb019b7b25c78bbbf0d48568500b/registry/
+transactions: 34 in 34 steps; sent a second time: none
+c1     0xe52a678f301541fedcd30a2b830efbeed52fe98fc6d136422b141fde9204abf8 3 agree, 0 disagree, 2 idle  interested GU
+c2     0xb7e910ae8e1b830f494e20f467fcd3338f2c20905541aa5fbc3cc82b9ca3f10e 3 agree, 0 disagree, 2 idle  declared --
+c3     0xa24bd1b8d80015f0fbb83a33f53d14c28cefb94da86f1e3895116e8f0ee4ce6e 3 agree, 1 disagree, 0 idle  clear UU
+c4     0x81381de92087cf1f3681afd90906412a20e79ebed3d1c2570a7b82d376b1f36b 3 agree, 0 disagree, 2 idle  clear UU
+d2     0x529b0ecebd49cb8fbb8c0638fd8ff34a769911577d66aef12075d9e879584e8a 3 agree, 2 disagree, 0 idle  clean bdca0bc4860a6a72
+d3     0x21f00dac7406706f0b9462cfc3afd21fea13f0dbcb098400599e6e21b425f501 3 agree, 1 disagree, 1 idle  hidden 1441333413f78eb4
+e1     0xb5b8b329975686730945705f119681f6319036178172b0c4eaeabd80594b8ef3 3 agree, 0 disagree, 2 idle  clear UU
+e2     0xdf1c6c7c31c2b08462d583d57a0d3c0df25c9753ac452b9776d634e6b414ea50 3 agree, 0 disagree, 2 idle  unclear 1441333413f78eb4
+
+exit 0

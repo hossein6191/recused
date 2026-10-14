@@ -837,3 +837,17 @@ fractions, exponents, NaN and Infinity refused, so no float is ever built from
 it. Every payable write, `enrol` now among them, refunds and answers
 `{"ok": false}` on every refusal and never runs a model; a static test checks
 each of them for `_fail`, `_clock`, a raise and any nondet call.
+
+### Whether the page names the member is decided in code, and SILENT asks one thing
+
+The first on-chain run asked SILENT as one compound question: does the page give the member's name, and is it
+either silent about the payee or does it show only relations the disclosure mentions. On the Pelican Press page,
+which names Mara Quist only for the print shop she disclosed, the validators agreed on unclear where the honest
+answer was clean. A yes/no question that carries two conditions is a question a model can answer two ways.
+
+So the one fact a program can check is checked by the program: `_names_member` lower-cases the page and the public
+name, turns punctuation into spacing, and looks for the name as whole words. A page that does not give it is
+unclear before any model is asked, and the bond goes back. Only a page that names the member reaches the two
+questions, and SILENT now asks a single plain thing, with the meaning of yes and no stated. The second run read
+the same page clean, 3 agree.
+
