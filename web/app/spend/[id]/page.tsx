@@ -9,45 +9,63 @@
 import { SectionHelp } from "@/components/section-help";
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Check, FileText, PenLine, RefreshCw, Signature, TimerOff, TriangleAlert } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, FileText, Gavel, PenLine, RefreshCw, Send, ShieldAlert, Signature, TimerOff, TriangleAlert, Undo2 } from "lucide-react";
 
 import { Address } from "@/components/address";
 import { BlockSkeleton, ReadBlock, ReadError } from "@/components/read-state";
 import { ApprovalDots, PhaseBadge, ReadingCard, TokenPair } from "@/components/reading";
 import { TxBlock } from "@/components/tx-block";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Suggest } from "@/components/suggest";
+import { ChallengeCard, MemberTag, VersionOneNotice, WaitPanel } from "@/components/v2";
 import { useChainSeconds } from "@/components/use-clock";
 import { useMe } from "@/components/use-me";
 import { useRead, type ReadState } from "@/components/use-read";
 import { useTx } from "@/components/use-tx";
 import { WalletGate } from "@/components/wallet-gate";
 import {
+  CHALLENGE_BOND_ATTO,
   LIMITS,
   approveOutcome,
   balanceOf,
   calls,
+  challengeOutcome,
   invalidateReads,
+  memberPath,
+  pageProblem,
   parseSpendId,
   phaseOf,
+  readBondCredit,
+  readChallenges,
+  readDesk,
   readDocument,
   readIdents,
   readMember,
+  readMembers,
   readReadings,
   readSpend,
+  releaseOutcome,
   spendPath,
   textProblem,
   txUrl,
   type ApproveOutcome,
+  type Challenge,
+  type Desk,
   type Ident,
   type Member,
+  type MemberRow,
   type Phase,
   type Reading,
   type Spend,
   type SpendDocument,
 } from "@/lib/chain";
-import { gen, short, span, when } from "@/lib/format";
+import { gen, minutesLabel, short, span, toAtto, when } from "@/lib/format";
+import { registerPageOf } from "@/lib/registry";
+import { BOND_SUGGESTIONS, pageSuggestions } from "@/lib/suggestions";
+import { waitingCopy, type WaitRole } from "@/lib/waiting";
 import { sha256Hex } from "@/lib/hash";
 import { rememberReading } from "@/lib/register";
 import { sentence } from "@/lib/words";
@@ -82,10 +100,15 @@ function SpendView({ desk, n }: { desk: string; n: number }) {
   const me = useMe();
   const spend = useRead(() => readSpend(desk, n), [desk, n]);
   const s = spend.data;
+  const deskRead = useRead(() => readDesk(desk), [desk], { enabled: !!s });
   const doc = useRead(() => readDocument(desk, n), [desk, n], { enabled: !!s });
   const idents = useRead(() => readIdents(desk, n), [desk, n], { enabled: !!s && s.idents > 0 });
   const readings = useRead(() => readReadings(desk, n), [desk, n], { enabled: !!s && s.attempts > 0 });
   const member = useRead(() => readMember(desk, me.address), [desk, me.address], { enabled: !!s && !!me.address });
+  // Version 2: the challenges read on this spend, and the members' public names to cite against.
+  const v2 = !!s && (s.state === "holding" || s.challenges > 0 || s.struck > 0);
+  const challenges = useRead(() => readChallenges(desk, n), [desk, n], { enabled: v2 });
+  const members = useRead(() => readMembers(desk), [desk], { enabled: v2 });
 
   const now = useChainSeconds(s);
   const phase: Phase | null = s && now ? phaseOf(s, now) : null;
@@ -93,11 +116,14 @@ function SpendView({ desk, n }: { desk: string; n: number }) {
   const refreshAll = React.useCallback(() => {
     invalidateReads();
     void spend.refresh();
+    void deskRead.refresh();
     void doc.refresh();
     void idents.refresh();
     void readings.refresh();
     void member.refresh();
-  }, [spend, doc, idents, readings, member]);
+    void challenges.refresh();
+    void members.refresh();
+  }, [spend, deskRead, doc, idents, readings, member, challenges, members]);
   const refreshRef = React.useRef(refreshAll);
   React.useEffect(() => {
     refreshRef.current = refreshAll;
@@ -111,26 +137,30 @@ function SpendView({ desk, n }: { desk: string; n: number }) {
     lastPhase.current = phase;
   }, [phase]);
 
-  // While the spend is open, look every half minute for what other members did.
-  const open = s?.state === "open";
-  const seen = s ? `${s.state}|${s.approvals}|${s.attempts}|${s.idents}` : "";
+  // While the spend is open or in its hold, look every half minute for what others did.
+  const live = s?.state === "open" || s?.state === "holding";
+  const fingerprint = (d: Spend) => `${d.state}|${d.approvals}|${d.attempts}|${d.idents}|${d.challenges}|${d.struck}|${d.holdUntil}`;
+  const seen = s ? fingerprint(s) : "";
   const seenRef = React.useRef(seen);
   React.useEffect(() => {
     seenRef.current = seen;
   });
   React.useEffect(() => {
-    if (!open) return;
+    if (!live) return;
     const t = setInterval(async () => {
       if (document.hidden) return;
       try {
         const d = (await readSpend(desk, n, { fresh: true })).data;
-        if (d && `${d.state}|${d.approvals}|${d.attempts}|${d.idents}` !== seenRef.current) refreshRef.current();
+        if (d && fingerprint(d) !== seenRef.current) refreshRef.current();
       } catch {
         /* a dropped poll is not news; the next one may answer */
       }
     }, WATCH_MS);
     return () => clearInterval(t);
-  }, [open, desk, n]);
+  }, [live, desk, n]);
+
+  const rows = members.data ?? [];
+  const deskData = deskRead.data;
 
   return (
     <div className="container-site space-y-6 py-8">
@@ -142,6 +172,7 @@ function SpendView({ desk, n }: { desk: string; n: number }) {
           <RefreshCw /> Read again
         </Button>
       </div>
+      <VersionOneNotice />
 
       <ReadBlock
         state={spend}
@@ -165,7 +196,32 @@ function SpendView({ desk, n }: { desk: string; n: number }) {
       >
         {(sp) => (
           <>
-            <Summary spend={sp} phase={phase ?? phaseOf(sp, sp.chainNow || Math.floor(sp.readAtMs / 1000))} now={now} readings={readings.data ?? []} onChanged={refreshAll} />
+            <Summary
+              spend={sp}
+              desk={deskData}
+              phase={phase ?? phaseOf(sp, sp.chainNow || Math.floor(sp.readAtMs / 1000))}
+              now={now}
+              me={me.address}
+              readings={readings.data ?? []}
+              challenges={challenges.data?.rows ?? []}
+              onChanged={refreshAll}
+            />
+            {v2 ? (
+              <Challenges
+                spend={sp}
+                desk={deskData}
+                phase={phase}
+                now={now}
+                me={me.address}
+                members={rows}
+                list={challenges.data?.rows ?? []}
+                count={challenges.data?.count ?? sp.challenges}
+                loading={challenges.loading}
+                error={challenges.error}
+                retry={challenges.retry}
+                onChanged={refreshAll}
+              />
+            ) : null}
             <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
               <div className="space-y-6">
                 <DocumentCard state={doc} spend={sp} />
@@ -183,6 +239,7 @@ function SpendView({ desk, n }: { desk: string; n: number }) {
               <div className="space-y-6">
                 <Countersign
                   spend={sp}
+                  desk={deskData}
                   phase={phase}
                   now={now}
                   me={me.address}
@@ -201,15 +258,46 @@ function SpendView({ desk, n }: { desk: string; n: number }) {
   );
 }
 
+/** Who the visitor is to this spend, for the waiting panels. */
+function roleOn(spend: Spend, me: string): WaitRole {
+  if (!me) return "anyone";
+  if (me === spend.approver1 || me === spend.approver2) return "signer";
+  if (me === spend.poster) return "poster";
+  return "anyone";
+}
+
 // ---- the summary: what just happened, who acts next, how long it takes ------------------
 
-function Summary({ spend, phase, now, readings, onChanged }: { spend: Spend; phase: Phase; now: number; readings: Reading[]; onChanged: () => void }) {
+function Summary({
+  spend,
+  desk,
+  phase,
+  now,
+  me,
+  readings,
+  challenges,
+  onChanged,
+}: {
+  spend: Spend;
+  desk: Desk | null;
+  phase: Phase;
+  now: number;
+  me: string;
+  readings: Reading[];
+  challenges: Challenge[];
+  onChanged: () => void;
+}) {
   const tx = useTx(() => onChanged());
   const busy = tx.sending || (!!tx.hash && !tx.final);
   const total = Math.max(1, spend.windowUntil - spend.postedAt);
   const noticeShare = Math.min(100, Math.max(4, ((spend.noticeUntil - spend.postedAt) / total) * 100));
   const progress = now ? Math.min(100, Math.max(0, ((now - spend.postedAt) / total) * 100)) : 0;
   const recusals = readings.filter((r) => r.verdict && r.verdict !== "clear").length;
+  const hold = desk?.holdMinutes ? minutesLabel(desk.holdMinutes) : "the desk's hold";
+  const stake = desk?.memberStakeAtto ?? "0";
+  const role = roleOn(spend, me);
+  const struckBy = challenges.filter((c) => c.verdict === "hidden").slice(-1)[0] ?? null;
+  const released = tx.final ? releaseOutcome(tx.final) : null;
 
   let status: React.ReactNode;
   if (phase === "notice") {
@@ -231,9 +319,31 @@ function Summary({ spend, phase, now, readings, onChanged }: { spend: Spend; pha
         </p>
         <p className="text-muted-foreground">
           The document is sealed. Next: any member but the poster may countersign, once.{" "}
-          {spend.approvals === 1 ? "The next clear countersignature pays the payee in its own transaction." : "Two clear ones pay the payee."}{" "}
+          {spend.approvals === 1
+            ? `The next clear countersignature puts it in its hold of ${hold}; after the hold anyone may release the payment.`
+            : `Two clear ones put it in its hold of ${hold}, and the payment leaves when anyone releases it after the hold.`}{" "}
           If two are not found by {when(spend.windowUntil)}, the spend expires and the money stays in the desk.
         </p>
+        {struckBy && spend.struck > 0 ? (
+          <WaitPanel
+            className="mt-3"
+            tone="warn"
+            title={`A register page struck ${struckBy.publicName}'s signature, so ${spend.label} is open again.`}
+            lines={waitingCopy(
+              {
+                kind: "struck",
+                label: spend.label,
+                publicName: struckBy.publicName,
+                slashedAtto: struckBy.slashedAtto,
+                bountyAtto: struckBy.bountyAtto,
+                toDeskAtto: struckBy.toDeskAtto,
+                amountAtto: spend.amountAtto,
+                expired: false,
+              },
+              me === struckBy.memberAddr ? "signer" : me === struckBy.challenger ? "challenger" : role === "signer" ? "anyone" : role,
+            )}
+          />
+        ) : null}
       </>
     );
   } else if (phase === "overdue") {
@@ -246,6 +356,36 @@ function Summary({ spend, phase, now, readings, onChanged }: { spend: Spend; pha
         </p>
       </>
     );
+  } else if (phase === "holding") {
+    const share = spend.holdUntil > spend.heldAt ? Math.min(100, Math.max(0, ((now - spend.heldAt) / (spend.holdUntil - spend.heldAt)) * 100)) : 0;
+    status = (
+      <>
+        <p className="font-medium">
+          In its hold for another <span className="font-mono">{span(spend.holdUntil - now)}</span>, with both clear countersignatures counted.
+        </p>
+        <div className="my-2 h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+          <div className="h-full bg-primary/60" style={{ width: `${share}%` }} />
+        </div>
+        <WaitPanel
+          lines={waitingCopy(
+            { kind: "holding", label: spend.label, now, holdUntil: spend.holdUntil, amountAtto: spend.amountAtto, stakeAtto: stake, bondAtto: CHALLENGE_BOND_ATTO.toString(), challenges: spend.challenges },
+            role,
+          )}
+        />
+      </>
+    );
+  } else if (phase === "releasable") {
+    status = (
+      <>
+        <p className="font-medium">The hold ended {when(spend.holdUntil)} with both signatures standing. It is ready to be released.</p>
+        <WaitPanel lines={waitingCopy({ kind: "releasable", label: spend.label, amountAtto: spend.amountAtto }, role)} />
+        <WalletGate action="release this spend" className="mt-3">
+          <Button type="button" variant="cool" size="sm" className="mt-3" disabled={busy} onClick={() => void tx.start(calls.release(spend.desk, spend.n))}>
+            <Send /> Release {spend.label} and pay {gen(spend.amountAtto)}
+          </Button>
+        </WalletGate>
+      </>
+    );
   } else if (phase === "paid") {
     status = (
       <>
@@ -253,8 +393,10 @@ function Summary({ spend, phase, now, readings, onChanged }: { spend: Spend; pha
           Paid{spend.paidAt ? ` ${when(spend.paidAt)}` : ""}: {gen(spend.amountAtto)} left the fund for {short(spend.payee)}.
         </p>
         <p className="text-muted-foreground">
-          The money moved in the transaction of the second clear countersignature, after the spend was marked paid. Nothing more
-          can happen to this spend and nobody needs to act.
+          {spend.holds > 0
+            ? `Two clear countersignatures put it in its hold, nobody struck either of them${spend.challenges ? ` (${spend.challenges} ${spend.challenges === 1 ? "page was" : "pages were"} cited)` : ""}, and the release paid the payee in its own transaction, after the spend was marked paid.`
+            : "The money moved in the transaction of the second clear countersignature, after the spend was marked paid."}{" "}
+          Nothing more can happen to this spend and nobody needs to act.
         </p>
       </>
     );
@@ -314,6 +456,8 @@ function Summary({ spend, phase, now, readings, onChanged }: { spend: Spend; pha
           <dd>
             {spend.attempts} {spend.attempts === 1 ? "reading" : "readings"}, {recusals} {recusals === 1 ? "recusal" : "recusals"}, {spend.idents}{" "}
             {spend.idents === 1 ? "identification" : "identifications"}
+            {spend.challenges ? `, ${spend.challenges} ${spend.challenges === 1 ? "challenge" : "challenges"}` : ""}
+            {spend.struck ? `, ${spend.struck} struck` : ""}
           </dd>
         </div>
       </dl>
@@ -335,11 +479,16 @@ function Summary({ spend, phase, now, readings, onChanged }: { spend: Spend; pha
         </div>
         <div className="flex flex-wrap justify-between gap-2 text-[11px] text-muted-foreground">
           <span>Notice window until {when(spend.noticeUntil)}</span>
-          <span>Countersignatures until {when(spend.windowUntil)}</span>
+          <span>{spend.holdUntil ? `Hold until ${when(spend.holdUntil)}` : `Countersignatures until ${when(spend.windowUntil)}`}</span>
         </div>
       </div>
 
-      <div className={cn("mt-5 space-y-1 rounded-xl border p-4 text-sm", phase === "paid" ? "border-keeps/40 bg-keeps/10" : phase === "overdue" ? "border-gold/40 bg-gold/10" : "bg-background/40")}>
+      <div
+        className={cn(
+          "mt-5 space-y-2 rounded-xl border p-4 text-sm",
+          phase === "paid" || phase === "releasable" ? "border-keeps/40 bg-keeps/10" : phase === "overdue" ? "border-gold/40 bg-gold/10" : phase === "holding" ? "border-primary/40 bg-primary/5" : "bg-background/40",
+        )}
+      >
         {status}
         {phase === "overdue" ? (
           <WalletGate action="expire this spend" className="mt-3">
@@ -349,8 +498,262 @@ function Summary({ spend, phase, now, readings, onChanged }: { spend: Spend; pha
           </WalletGate>
         ) : null}
       </div>
-      <TxBlock tx={tx} label={`Expiring ${spend.label}`} className="mt-3" />
+      <TxBlock tx={tx} label={tx.call?.fn === "release" ? `Releasing ${spend.label}` : `Expiring ${spend.label}`} className="mt-3" />
+      {released?.kind === "paid" ? (
+        <div className="mt-3 space-y-2 rounded-xl border border-keeps/50 bg-keeps/10 p-4 text-sm">
+          <p className="text-base font-semibold text-keeps">Released: {gen(released.paidAtto)} paid to {short(released.to)} in this transaction.</p>
+          <WaitPanel lines={waitingCopy({ kind: "released", label: spend.label, amountAtto: released.paidAtto }, role)} />
+          <PayeeBalance payee={released.to || spend.payee} />
+        </div>
+      ) : released?.kind === "dropped" ? (
+        <div className="mt-3 space-y-1 rounded-xl border border-gold/40 bg-gold/10 p-4 text-sm">
+          <p className="font-medium">Nothing was paid: a counted signature was dropped.</p>
+          <p className="text-foreground/90">{sentence(released.reason)}</p>
+          <p className="text-muted-foreground">{spend.label} is {released.state} again with {released.approvals} of 2. No stake was slashed a second time.</p>
+        </div>
+      ) : null}
     </section>
+  );
+}
+
+// ---- the register: challenges read against the counted signatures ------------------------------
+
+function Challenges({
+  spend,
+  desk,
+  phase,
+  now,
+  me,
+  members,
+  list,
+  count,
+  loading,
+  error,
+  retry,
+  onChanged,
+}: {
+  spend: Spend;
+  desk: Desk | null;
+  phase: Phase | null;
+  now: number;
+  me: string;
+  members: MemberRow[];
+  list: Challenge[];
+  count: number;
+  loading: boolean;
+  error: string;
+  retry: () => void;
+  onChanged: () => void;
+}) {
+  const holding = phase === "holding";
+  return (
+    <section className={cn(card, holding && "ring-1 ring-primary/30")} aria-labelledby="register-title">
+      <h2 id="register-title" className="flex items-center gap-2 text-lg font-semibold">
+        <Gavel className="size-4 text-primary" /> The public register: challenges
+        <SectionHelp k="spend-challenge" />
+      </h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        While a spend is in its hold, anyone may cite a page of one of the registers this desk named when it was opened against
+        either counted signature. Every validator fetches the page on the live web, fingerprints it and reads it against the
+        member&apos;s disclosure; a relation to the payee the member never disclosed strikes the signature and slashes the stake, in
+        that one transaction.
+      </p>
+      {desk && desk.registries.length ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          The registers of {desk.id}, fixed when it was opened:{" "}
+          {desk.registries.map((r) => (
+            <a key={r} href={r} target="_blank" rel="noopener noreferrer" className="mr-2 font-mono break-all text-primary underline-offset-4 hover:underline">
+              {r}
+            </a>
+          ))}
+        </p>
+      ) : null}
+      {holding ? <ChallengePanel spend={spend} desk={desk} now={now} me={me} members={members} list={list} onChanged={onChanged} /> : null}
+      <div className="mt-4 space-y-3">
+        {error && !list.length ? <ReadError onRetry={retry} detail={error} compact /> : null}
+        {loading && !list.length && count > 0 ? <BlockSkeleton lines={3} className="border-0 bg-transparent p-0" /> : null}
+        {!count ? (
+          <p className="text-sm text-muted-foreground">{holding ? "No page has been cited against this spend yet." : "No page was cited against this spend."}</p>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">
+              {count} {count === 1 ? "challenge" : "challenges"} read on {spend.label}, oldest first
+              {count > list.length ? ` (the first ${list.length} shown; challenges_of pages them twenty at a time)` : ""}.
+            </p>
+            {list.map((c) => (
+              <ChallengeCard key={c.n} c={c} me={me} />
+            ))}
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** Cite a register page against one counted signature: pick the signer, the page, put up the bond, and challenge. */
+function ChallengePanel({
+  spend,
+  desk,
+  now,
+  me,
+  members,
+  list,
+  onChanged,
+}: {
+  spend: Spend;
+  desk: Desk | null;
+  now: number;
+  me: string;
+  members: MemberRow[];
+  list: Challenge[];
+  onChanged: () => void;
+}) {
+  const counted = [spend.approver1, spend.approver2].filter(Boolean);
+  const signers = counted.map((who) => members.find((m) => m.who === who) ?? { number: "", who, publicName: "", stakeAtto: "0" });
+  const [target, setTarget] = React.useState(signers[0]?.who ?? "");
+  const [url, setUrl] = React.useState("");
+  const [deposit, setDeposit] = React.useState("0.1");
+  const [error, setError] = React.useState("");
+  const credit = useRead(() => readBondCredit(me), [me], { enabled: !!me });
+  const tx = useTx(() => {
+    onChanged();
+    void credit.refresh();
+  });
+  const busy = tx.sending || (!!tx.hash && !tx.final);
+  const pick = signers.find((x) => x.who === target) ?? signers[0];
+  const registries = desk?.registries ?? [];
+  const chips = pageSuggestions(registries);
+  const held = BigInt(credit.data?.creditAtto ?? "0");
+  const enough = held >= CHALLENGE_BOND_ATTO;
+  const left = spend.holdUntil - now;
+  const outcome = tx.final && tx.call?.fn === "challenge" ? challengeOutcome(tx.final) : null;
+  const inFlight = !!tx.hash && !tx.final && tx.call?.fn === "challenge";
+  const already = pick ? list.some((c) => c.memberAddr === pick.who && c.url === url.trim()) : false;
+  const page = registerPageOf(url.trim());
+
+  const sendDeposit = () => {
+    setError("");
+    let value: bigint;
+    try {
+      value = toAtto(deposit);
+    } catch (e) {
+      return setError(e instanceof Error ? e.message : "Enter an amount.");
+    }
+    if (value <= 0n) return setError("Deposit an amount greater than zero.");
+    void tx.start(calls.deposit(value));
+  };
+  const send = () => {
+    setError("");
+    if (!pick || !pick.number) return setError("Pick one of the two counted signatures.");
+    if (pick.who === me) return setError("A member may not challenge their own countersignature.");
+    const p = pageProblem(url.trim(), registries);
+    if (p) return setError(p);
+    if (already) return setError("This page was already read against that signature on this spend; each page is read once against each signature.");
+    void tx.start(calls.challenge(spend.desk, spend.n, pick.number, url.trim()));
+  };
+
+  return (
+    <div className="mt-4 space-y-4 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm" data-panel="challenge">
+      <p className="font-medium">Cite a register page</p>
+      <fieldset className="space-y-2">
+        <legend className="text-xs text-muted-foreground">1. Whose signature: one of the two counted</legend>
+        <div className="flex flex-wrap gap-2">
+          {signers.map((x) => (
+            <label key={x.who} className={cn("flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2", target === x.who ? "border-primary bg-primary/10" : "bg-background/40")}>
+              <input type="radio" name="challenge-target" className="accent-[var(--primary)]" checked={target === x.who} onChange={() => setTarget(x.who)} disabled={busy} />
+              <MemberTag number={x.number || "M?"} name={x.publicName} who={x.who} />
+              {x.who === me ? <span className="text-[11px] text-gold">you</span> : null}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <div className="space-y-1.5">
+        <Label htmlFor="challenge-url" className="text-xs text-muted-foreground">
+          2. The page: an https address below one of the desk&apos;s registers, at most {LIMITS.urlChars} characters
+        </Label>
+        <Input id="challenge-url" value={url} onChange={(e) => setUrl(e.target.value)} className="font-mono text-xs" placeholder={registries[0] ? registries[0] + "…" : "https://"} disabled={busy} />
+        {chips.length ? <Suggest label="Pages" options={chips} onPick={setUrl} disabled={busy} /> : null}
+        {page ? <p className="text-xs text-muted-foreground">{page.company}: {page.shows}.</p> : null}
+      </div>
+      <div className="space-y-2">
+        <p className="text-xs text-muted-foreground">3. The bond</p>
+        <p className="text-xs text-foreground/90">
+          A challenge stakes {gen(CHALLENGE_BOND_ATTO)} from your bond credit. If the page names the member and shows nothing they hid
+          (clean), the bond goes to them; if it shows a hidden relation, it stays with you and half their stake comes to you; anything
+          else (unclear) costs nothing. A page that could not be fetched, or read the same by every validator, stores nothing and takes no bond.
+        </p>
+        <p className="text-xs">
+          {!me ? "Connect a wallet to see your bond credit." : credit.data ? `Your bond credit: ${gen(held)}, enough for ${credit.data.covered} ${credit.data.covered === 1 ? "challenge" : "challenges"}.` : "Reading your bond credit."}
+        </p>
+        {me && !enough ? (
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="bond-amount" className="text-xs">
+                Deposit bond credit (GEN)
+              </Label>
+              <Input id="bond-amount" value={deposit} onChange={(e) => setDeposit(e.target.value)} inputMode="decimal" className="w-28" disabled={busy} />
+            </div>
+            <WalletGate action="deposit bond credit">
+              <Button type="button" variant="outline" disabled={busy} onClick={sendDeposit}>
+                Deposit
+              </Button>
+            </WalletGate>
+            <Suggest label="" options={BOND_SUGGESTIONS.map((o) => ({ label: o.label, value: gen(o.value, "") }))} onPick={setDeposit} disabled={busy} />
+          </div>
+        ) : null}
+      </div>
+      {error ? (
+        <p role="alert" className="text-sm text-gold">
+          {error}
+        </p>
+      ) : null}
+      {now && left < 4 * 60 ? (
+        <p className="text-xs text-gold">
+          Only {span(left)} of the hold is left. A round takes one to three minutes; one that lands after the hold has ended is refused
+          before any page is fetched, and no bond is taken.
+        </p>
+      ) : null}
+      <WalletGate action="challenge a signature">
+        <Button type="button" variant="cool" disabled={busy || !enough || !url.trim()} onClick={send}>
+          <ShieldAlert /> Challenge {pick ? `${pick.number} ${pick.publicName}` : "the signature"}
+        </Button>
+      </WalletGate>
+      {inFlight && pick ? (
+        <WaitPanel
+          tone="busy"
+          title="The validators are reading the page."
+          lines={waitingCopy(
+            {
+              kind: "challenge",
+              label: spend.label,
+              publicName: pick.publicName || pick.number,
+              page: page ? page.file : "the page",
+              bondAtto: CHALLENGE_BOND_ATTO.toString(),
+              stakeAtto: desk?.memberStakeAtto ?? "0",
+              amountAtto: spend.amountAtto,
+            },
+            "challenger",
+          )}
+        />
+      ) : null}
+      <TxBlock tx={tx} label={tx.call?.fn === "deposit" ? "Depositing bond credit" : `Challenging a signature on ${spend.label}`} votes={tx.call?.fn === "challenge"} />
+      {outcome?.kind === "settled" ? <ChallengeCard c={outcome.challenge} me={me} hash={tx.hash} /> : null}
+      {outcome?.kind === "unsettled" ? (
+        <p className="rounded-lg border border-gold/40 bg-gold/10 p-3 text-xs">
+          The validators did not agree on a reading of this page: it could not be fetched, answered an error, or did not read the same
+          for all of them. Nothing was stored and no bond was taken; you may cite it again.
+        </p>
+      ) : null}
+      {me && held > 0n ? (
+        <p className="text-xs text-muted-foreground">
+          Bond credit is yours alone and is not tied to this desk.{" "}
+          <button type="button" className="text-primary underline-offset-4 hover:underline disabled:opacity-50" disabled={busy} onClick={() => void tx.start(calls.withdraw())}>
+            <Undo2 className="mr-1 inline size-3" />
+            Withdraw all {gen(held)}
+          </button>
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -597,6 +1000,7 @@ function Identifications({
 
 function Countersign({
   spend,
+  desk,
   phase,
   now,
   me,
@@ -606,6 +1010,7 @@ function Countersign({
   onChanged,
 }: {
   spend: Spend;
+  desk: Desk | null;
   phase: Phase | null;
   now: number;
   me: string;
@@ -616,7 +1021,7 @@ function Countersign({
 }) {
   const tx = useTx((s) => {
     const o = approveOutcome(s);
-    if (o.kind === "paid" || o.kind === "counted" || o.kind === "recused") rememberReading(spend.desk, spend.n, me);
+    if (o.kind === "holding" || o.kind === "counted" || o.kind === "recused") rememberReading(spend.desk, spend.n, me);
     onChanged();
   });
   const busy = tx.sending || (!!tx.hash && !tx.final);
@@ -631,10 +1036,12 @@ function Countersign({
   const lateFiled = !!member && member.filedSeq > spend.gateSeq;
   const gateWords = spend.gateSeq === spend.postedSeq ? `the spend is ${spend.postedSeq}` : `the first spend to this payee, still unpaid, is ${spend.gateSeq}`;
   const second = spend.approvals === 1;
+  const hold = desk?.holdMinutes ? minutesLabel(desk.holdMinutes) : "the desk's hold";
+  const stakeShort = !!member && !member.stakeWhole;
 
   let body: React.ReactNode;
   if (outcome && outcome.kind !== "unknown") {
-    body = <Outcome outcome={outcome} spend={spend} hash={tx.hash} />;
+    body = <Outcome outcome={outcome} spend={spend} hold={hold} hash={tx.hash} />;
   } else if (phase === "notice") {
     body = (
       <p className="text-sm text-muted-foreground">
@@ -687,6 +1094,21 @@ function Countersign({
         Nothing more is needed from you.
       </p>
     );
+  } else if (member.retired || stakeShort) {
+    body = (
+      <div className="space-y-3 text-sm">
+        <p className="text-muted-foreground">
+          {member.retired
+            ? "You retired from countersigning on this desk, so the contract refuses your countersignature before any model is asked."
+            : `Your stake on this desk is ${gen(member.stakeAtto)} of the ${gen(desk?.memberStakeAtto ?? "0")} it asks, after a register page struck a signature of yours. A member whose stake is not whole may not countersign; the contract refuses before any model is asked and your attempt stays unspent.`}
+        </p>
+        <Button asChild variant="cool" size="sm">
+          <Link href={memberPath(spend.desk)}>
+            {member.retired ? "Your stake and record" : "Restake on your member page"} <ArrowRight />
+          </Link>
+        </Button>
+      </div>
+    );
   } else {
     body = (
       <div className="space-y-4 text-sm">
@@ -714,8 +1136,8 @@ function Countersign({
               <strong className="text-foreground">Read clear, counted.</strong> The validators read your disclosure against the
               document under both branches. If nothing you filed moves either way, your countersignature counts.{" "}
               {second
-                ? `Yours would be the second: the fund pays ${gen(spend.amountAtto)} to ${short(spend.payee)} in this same transaction.`
-                : "Yours would be the first of two; no money moves yet."}
+                ? `Yours would be the second: the spend goes into its hold of ${hold}, and after it anyone may release ${gen(spend.amountAtto)} to ${short(spend.payee)}. During the hold anyone may cite a register page against your signature, and your stake of ${gen(member.stakeAtto)} answers for it.`
+                : `Yours would be the first of two; no money moves yet. Your stake of ${gen(member.stakeAtto)} answers for this signature until the spend ends.`}
             </li>
             <li className={cn(!declared && !lateFiled && "text-foreground")}>
               <strong className="text-foreground">Read as moved or unsettled, recused.</strong> If something you filed is better or
@@ -777,7 +1199,7 @@ function LateNote() {
 }
 
 /** What the countersignature just did, in words, with what happens next. */
-function Outcome({ outcome, spend, hash }: { outcome: ApproveOutcome; spend: Spend; hash: string | null }) {
+function Outcome({ outcome, spend, hold, hash }: { outcome: ApproveOutcome; spend: Spend; hold: string; hash: string | null }) {
   if (outcome.kind === "procedural")
     return (
       <div className="space-y-2 rounded-xl border border-gold/40 bg-gold/10 p-4 text-sm">
@@ -786,25 +1208,24 @@ function Outcome({ outcome, spend, hash }: { outcome: ApproveOutcome; spend: Spe
         <p className="text-muted-foreground">Nothing was stored against you and your attempt on this spend is unspent.</p>
       </div>
     );
-  if (outcome.kind === "paid")
+  if (outcome.kind === "holding")
     return (
       <div className="space-y-3">
         <div className="space-y-2 rounded-xl border border-keeps/50 bg-keeps/10 p-4 text-sm">
-          <p className="text-base font-semibold text-keeps">Clear, and yours was the second: the spend is paid.</p>
+          <p className="text-base font-semibold text-keeps">Clear, and yours was the second: the spend is in its hold.</p>
           <p className="text-foreground/90">
-            {gen(outcome.paidAtto || spend.amountAtto)} left the fund for <span className="font-mono">{short(outcome.to || spend.payee)}</span> in
-            this transaction, after the spend was marked paid. The transfer lands a few seconds after finality.
+            Nothing has been paid yet. {spend.label} waits {hold}, until {when(outcome.holdUntil)}, while anyone may cite a page of one of
+            the desk&apos;s registers against either counted signature. Then anyone may release {gen(spend.amountAtto)} to{" "}
+            <span className="font-mono">{short(spend.payee)}</span>. Nothing more is needed from you, and you can leave.
           </p>
-          <PayeeBalance payee={outcome.to || spend.payee} />
           {hash ? (
             <a href={txUrl(hash)} target="_blank" rel="noopener noreferrer" className="inline-block text-xs text-primary underline-offset-4 hover:underline">
-              See the payment in the explorer
+              See it in the explorer
             </a>
           ) : null}
         </div>
         <TokenPair value={outcome.reading.value} />
         <p className="text-sm text-muted-foreground">{outcome.reading.why}</p>
-        <p className="text-xs text-muted-foreground">Nothing more can happen to this spend and nobody needs to act.</p>
       </div>
     );
   if (outcome.kind === "counted")
@@ -813,8 +1234,8 @@ function Outcome({ outcome, spend, hash }: { outcome: ApproveOutcome; spend: Spe
         <div className="space-y-1 rounded-xl border border-keeps/50 bg-keeps/10 p-4 text-sm">
           <p className="text-base font-semibold text-keeps">Clear: your countersignature is counted, 1 of 2.</p>
           <p className="text-foreground/90">
-            No money has moved. One more clear countersignature from another member pays the spend, in that member&apos;s own
-            transaction. Nothing more is needed from you.
+            No money has moved. One more clear countersignature from another member puts the spend in its hold of {hold}; after it
+            anyone may release the payment. Nothing more is needed from you.
           </p>
         </div>
         <TokenPair value={outcome.reading.value} />
@@ -905,7 +1326,7 @@ function ReadingsCard({ spend, readings, loading, error, retry, me }: { spend: S
           readings.map((r) => (
             <div key={r.member + r.attempt} className="space-y-1">
               <ReadingCard reading={r} mine={r.member === me} />
-              {counted.includes(r.member) ? (
+              {counted.includes(r.member) && !r.struck ? (
                 <p className="pl-1 text-[11px] text-keeps">Counted as clear countersignature {counted.indexOf(r.member) + 1} of 2.</p>
               ) : null}
             </div>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BookOpenText } from "lucide-react";
+import { ArrowRight, BookOpenText, Gavel } from "lucide-react";
 
 import { Guide } from "@/components/guide";
 import { TokenPair, VerdictBadge } from "@/components/reading";
@@ -15,7 +15,7 @@ const FIVE: [string, string][] = [
   ["Someone asks the fund to pay", "A member posts a spend: who is paid, how much and what for."],
   ["Two others countersign", "The poster may not approve their own spend. Two other members must."],
   ["The validators check each signer", "Does this payment move this member's position if it is paid? And if it is not?"],
-  ["Paid, or recused", "Two clear answers pay the payee at once. A member whose interests move is refused, in public."],
+  ["Held, then paid, or recused", "Two clear answers start a short hold, then anyone releases the payment. A member whose interests move is refused, in public."],
 ];
 
 export default function HomePage() {
@@ -50,9 +50,36 @@ export default function HomePage() {
           <AnimatedSpan className="text-breaks">x interested: recused, published, no money moves</AnimatedSpan>
           <TypingAnimation duration={22} className="text-foreground">{"> approve(D1, S1)  signed by the teacher"}</TypingAnimation>
           <AnimatedSpan className="text-keeps">  stored value UU   3 validators agree</AnimatedSpan>
-          <AnimatedSpan className="text-keeps">+ clear: counted 2 of 2</AnimatedSpan>
-          <AnimatedSpan className="text-keeps">+ 180 GEN paid to the print shop in this transaction</AnimatedSpan>
+          <AnimatedSpan className="text-keeps">+ clear: counted 2 of 2, in its hold</AnimatedSpan>
+          <TypingAnimation duration={22} className="text-foreground">{"> challenge(D1, S4, M1, .../registry/gull-catering-ltd.html)"}</TypingAnimation>
+          <AnimatedSpan className="text-muted-foreground">  S4 pays Gull Catering; M1 read clear, having filed only a print shop</AnimatedSpan>
+          <AnimatedSpan className="text-muted-foreground">  every validator fetches the page and agrees on its fingerprint</AnimatedSpan>
+          <AnimatedSpan className="text-breaks">x hidden: the page lists Mara Quist as a director of the payee</AnimatedSpan>
+          <AnimatedSpan className="text-keeps">+ signature struck, half her stake paid to the challenger now</AnimatedSpan>
         </Terminal>
+      </section>
+
+      <section className="rounded-2xl border border-brand/40 bg-brand/10 p-5 sm:p-6" aria-labelledby="v2-title" data-v2="landing">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-3xl space-y-2">
+            <p className="text-xs font-semibold tracking-widest text-primary uppercase">What is new in version 2</p>
+            <h2 id="v2-title" className="flex items-center gap-2 text-xl font-semibold tracking-tight">
+              <Gavel className="size-5 text-primary" /> What a member hid, a public register can prove
+            </h2>
+            <p className="text-sm text-foreground/85">
+              Version 1 said it plainly: the contract reads what a member filed and cannot know what they hid. Now every member stakes to
+              sign, a carried spend waits in a short hold before it pays, and during the hold anyone may cite a page from a public register
+              the desk named in advance. Every validator reads that page on the live web; if it shows a relation to the payee the member never
+              disclosed, the signature is struck, the payment stops and the member&apos;s stake pays the whistleblower, all in the same
+              transaction.
+            </p>
+          </div>
+          <Button asChild variant="cool" size="lg" className="shrink-0">
+            <Link href="/practice?track=catch">
+              Catch a hidden conflict yourself <ArrowRight />
+            </Link>
+          </Button>
+        </div>
       </section>
 
       <section aria-labelledby="steps-title" className="space-y-4">
@@ -86,10 +113,11 @@ export default function HomePage() {
           <div className="rounded-2xl border border-gold/40 bg-gold/10 p-5 text-sm">
             <p className="font-semibold text-gold">The limit, said plainly</p>
             <p className="mt-1 text-foreground/85">
-              The contract reads what you filed and cannot know what you hid. A member who leaves something out reads clear,
-              and so does one who files a false statement. A desk with open enrolment is not safe for money that matters:
-              three addresses one person controls can post a spend and carry it. A desk holding real money names its
-              members when it is opened.
+              A reading reads what you filed and cannot know what you hid. Version 2 catches one kind of hiding: a relation to the
+              payee that a public register the desk named shows, under the public name you gave. A relation no named register prints
+              is not caught, and neither is a member listed under another name. A desk with open enrolment is not safe for money that
+              matters: three addresses one person controls can post a spend and carry it. A desk holding real money names its
+              members, and registers they trust, when it is opened.
             </p>
           </div>
         </div>
@@ -171,12 +199,13 @@ export default function HomePage() {
         <h2 id="life-title" className="text-lg font-semibold">
           The life of a spend
         </h2>
-        <ol className="mt-4 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <ol className="mt-4 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-5">
           {[
             ["Posted", "A member names a payee, an amount and a description. The amount is set aside in the fund so no two open spends count on the same money. Under a minute."],
             ["Notice window", "For at least five minutes nobody may countersign. Any member but the poster whose disclosure predates the spend may add one sentence saying who the payee is."],
             ["Countersignatures", "The document is sealed. Any member but the poster may countersign once. Each reading takes one to two minutes and is stored whatever it says."],
-            ["Paid, or expired", "The second clear reading pays the payee in its own transaction. A spend that cannot find two before its window ends expires, and the money stays in the fund."],
+            ["Hold, and challenge", "The second clear reading starts a short hold. Anyone may cite a page of a register the desk named against a counted signature; a hidden relation strikes it and slashes the stake."],
+            ["Released, or expired", "When the hold ends, anyone may release the payment. A spend that cannot find two clear readings before its window ends expires, and the money stays in the fund."],
           ].map(([title, text], i) => (
             <li key={title} className="rounded-xl border bg-background/40 p-4">
               <p className="text-xs font-semibold text-primary">Step {i + 1}</p>
@@ -187,7 +216,7 @@ export default function HomePage() {
         </ol>
         <div className="mt-5 flex flex-wrap gap-3 text-sm">
           <Link href="/practice" className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline">
-            See all four steps alone on the practice desk <ArrowRight className="size-3.5" />
+            See all five steps alone on the practice desk <ArrowRight className="size-3.5" />
           </Link>
           <Link href="/enrol" className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline">
             File a disclosure <ArrowRight className="size-3.5" />

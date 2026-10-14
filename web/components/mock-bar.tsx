@@ -16,7 +16,8 @@ export function MockPersona() {
       <div className="container-site flex flex-col gap-2 py-2 text-xs sm:flex-row sm:items-center sm:justify-between">
         <p className="text-foreground/90">
           <strong className="font-semibold text-gold">Demo mode.</strong> An in-memory copy of the contract with scripted
-          readings. Nothing here is on chain, and a reload starts it again.
+          readings, and register pages judged by a fixed rule instead of validators. Nothing here is on chain, and a reload starts
+          it again.
         </p>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <label htmlFor="mock-persona" className="shrink-0 text-muted-foreground">

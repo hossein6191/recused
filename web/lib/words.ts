@@ -1,7 +1,7 @@
 // The site's own wording for what the contract stores: verdicts, the two characters of a value,
 // and the contract's refusal texts turned into sentences a person can act on. No React here.
 
-import { TOKEN_PHRASE, type Phase, type Verdict } from "./chain";
+import { TOKEN_PHRASE, type ChallengeVerdict, type Phase, type Verdict } from "./contract";
 import { gen, span, when } from "./format";
 
 /** One or two words for a verdict, for a badge. */
@@ -81,10 +81,42 @@ export function phaseLabel(p: Phase): string {
       return "Open for countersignatures";
     case "overdue":
       return "Window closed, awaiting expiry";
+    case "holding":
+      return "In its hold, open to challenge";
+    case "releasable":
+      return "Hold over, ready to release";
     case "paid":
       return "Paid";
     case "expired":
       return "Expired";
+  }
+}
+
+/** The heading of a challenge's result card. */
+export function challengeLabel(v: ChallengeVerdict): string {
+  switch (v) {
+    case "hidden":
+      return "Hidden conflict proven";
+    case "clean":
+      return "Clean";
+    case "unclear":
+      return "Unclear";
+    case "repeat":
+      return "Repeat, settles nothing";
+  }
+}
+
+/** What a challenge's finding means, in one plain sentence. */
+export function challengeMeaning(v: ChallengeVerdict): string {
+  switch (v) {
+    case "hidden":
+      return "Every validator read the page and agreed it shows a present relation to the payee that the member's disclosure leaves out. The signature is struck, the hold ended, and the member's stake was slashed in that transaction.";
+    case "clean":
+      return "The page names the member and shows nothing about the payee their disclosure left out, so the accusation was wrong: the challenger's bond went to the member, and the signature still counts.";
+    case "unclear":
+      return "The validators did not agree on either pattern: the page may not name the member, may show only a former relation, or may not let them decide. Nothing changed, and the bond stayed in the challenger's credit.";
+    case "repeat":
+      return "This page reads the same as one already read against this signature, under another address. Nothing is settled twice, and the bond stayed in the challenger's credit.";
   }
 }
 

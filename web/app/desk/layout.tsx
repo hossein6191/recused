@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Desk",
-  description: "One desk of the fund: its balance, its members with their disclosures and sequence numbers, and its spends.",
+  description: "One desk of the fund: its balance, its public registers, stake and hold, its members with their disclosures and public records, and its spends.",
 };
 
 export default function DeskLayout({ children }: { children: React.ReactNode }) {

@@ -1,23 +1,28 @@
-// The practice desk: its script and its state. No chain access and no React in here, so node
-// runs it as it is (tests/unit/practice.test.mjs).
+// The practice desk's first track, "be read and paid": its script and its state. No chain access
+// and no React in here, so node runs it as it is (tests/unit/practice.test.mjs).
 //
 // A spend needs three distinct members: one who posts it and two who countersign, and a
 // countersigner's disclosure must be older than the spend. A visitor who arrives alone can
 // therefore never be read on a spend that already exists. The practice desk solves that in the
 // open: the page makes three accounts of its own, says so, and has them play the other members
 // of a new desk. Every step is a real transaction; the visitor signs their own two with their
-// own wallet.
+// own wallet, and enrolling stakes the desk's member stake from it, which they can take back.
 //
-// The cast is the tenants' association the demo content uses. The teacher opens the desk and
-// posts both spends, so the teacher is never read. The print shop co-owner countersigns the
-// first spend (a locksmith, nothing to do with printing) and then the second (the print shop
-// itself), which is the contrast. The night nurse stays in reserve: a reading that does not come
-// back clear is final, so without a third member one hesitant reading would leave the first
-// spend unpaid for good.
+// The cast is the tenants' association the demo content uses. The teacher opens the desk, posts
+// both spends and releases the first once its hold has run, so the teacher is never read. The print
+// shop co-owner countersigns the first spend (a locksmith, nothing to do with printing) and then the
+// second (the print shop itself), which is the contrast. The night nurse stays in reserve: a reading
+// that does not come back clear is final, so without a third member one hesitant reading would
+// leave the first spend unpaid for good. In version 2 the second clear reading puts the spend in a
+// short hold, and the payment leaves when the teacher releases it after the hold.
 
-import type { EntryInput, Reading } from "./chain";
+import type { EntryInput, Reading } from "./contract";
+import { blankAction, heldNext, parseActions, parseKeys, plan, ADDRESS_RE, DESK_RE, MARK_WAIT_MS, type ActionState, type Phase } from "./track";
 
-export const PRACTICE_VERSION = 1;
+export { blankAction, plan, MARK_WAIT_MS };
+export type { ActionState, Phase };
+
+export const PRACTICE_VERSION = 2;
 export const PRACTICE_KEY = "recused:practice";
 
 /** The members the page plays. */
@@ -27,13 +32,14 @@ export const ROLES: Role[] = ["teacher", "printer", "nurse"];
 export type KeyName = Role | "locksmith" | "till";
 export const KEY_NAMES: KeyName[] = ["teacher", "printer", "nurse", "locksmith", "till"];
 
-export type CastMember = { name: string; short: string; part: string; statement: string; entries: EntryInput[] };
+export type CastMember = { name: string; short: string; part: string; publicName: string; statement: string; entries: EntryInput[] };
 
 export const CAST: Record<Role, CastMember> = {
   teacher: {
     name: "The teacher",
     short: "teacher",
-    part: "opens the desk and posts both spends, so is never read",
+    part: "opens the desk, posts both spends and releases the first once its hold has run, so is never read",
+    publicName: "Elin Varga",
     statement:
       "I teach mathematics at Alder Lane Primary School and have lived in the building for six years. I own no business and sit on no committee outside this association.",
     entries: [{ name: "Alder Lane Primary School", relation: "employed_by", detail: "full-time class teacher" }],
@@ -42,6 +48,7 @@ export const CAST: Record<Role, CastMember> = {
     name: "The print shop co-owner",
     short: "print shop co-owner",
     part: "countersigns the first spend, and is the one the second spend would pay",
+    publicName: "Mara Quist",
     statement: "I co-own Pelican Press, the print shop on Quay Street, with my sister. The shop is most of my income.",
     entries: [{ name: "Pelican Press", relation: "part_owns", detail: "a print shop on Quay Street; I hold half of it" }],
   },
@@ -49,6 +56,7 @@ export const CAST: Record<Role, CastMember> = {
     name: "The night nurse",
     short: "night nurse",
     part: "says who the second payee is, and stays in reserve in case a reading on the first spend is not clear",
+    publicName: "Ines Corrie",
     statement: "I work nights as a nurse at St Brendan's Hospital and have no business interests of any kind.",
     entries: [
       { name: "St Brendan's Hospital", relation: "employed_by", detail: "I nurse there; the hospital buys nothing from this fund and sells it nothing." },
@@ -65,10 +73,16 @@ export const VISITOR_DISCLOSURE: { statement: string; entries: EntryInput[]; add
   ],
   addresses: [],
 };
+/** The public name the visitor is offered: a register would list a member under it. */
+export const VISITOR_PUBLIC_NAME = "Sam Arden";
 
 const ATTO = 10n ** 18n;
 /** The desk's first funding, sent by the teacher with open_desk. */
 export const POT_ATTO = ATTO;
+/** What every member of the practice desk stakes to sign: the least a desk may ask, 0.1 GEN. */
+export const STAKE_ATTO = ATTO / 10n;
+/** How long a carried spend waits before the teacher may release it: the shortest hold the contract takes. */
+export const HOLD_MINUTES = 5;
 export const SPEND1 = {
   amountAtto: ATTO / 5n,
   payee: "locksmith" as const,
@@ -88,7 +102,7 @@ export const identification = (printerNumber: string): string =>
 
 /** How long countersignatures stay open after the notice window, in minutes: time enough to come back from a break. */
 export const LIVE_MINUTES = 60;
-/** Seconds after a notice window closes before a countersignature is sent, so the call's own clock is past it. */
+/** Seconds after a window closes on the chain before a call that waits for it is sent, so the call's own clock is past it. */
 export const NOTICE_MARGIN_S = 3;
 /** An identification is only sent while at least this much of the notice window is left. */
 export const IDENTIFY_NEEDS_S = 75;
@@ -106,13 +120,14 @@ export type ActionId =
   | "signYou"
   | "signPrinter"
   | "signNurse"
+  | "release1"
   | "post2"
   | "identify2"
   | "sign2";
 
 export const ACTIONS: ActionId[] = [
   "fundTeacher", "fundPrinter", "fundNurse", "open", "enrolTeacher", "enrolPrinter", "enrolNurse", "enrolYou", "post1",
-  "signYou", "signPrinter", "signNurse", "post2", "identify2", "sign2",
+  "signYou", "signPrinter", "signNurse", "release1", "post2", "identify2", "sign2",
 ];
 
 /** Who signs each action: one of the page-held members, or the visitor's own wallet. */
@@ -129,6 +144,7 @@ export const SIGNER: Record<ActionId, Role | "you"> = {
   signYou: "you",
   signPrinter: "printer",
   signNurse: "nurse",
+  release1: "teacher",
   post2: "teacher",
   identify2: "nurse",
   sign2: "printer",
@@ -137,39 +153,8 @@ export const SIGNER: Record<ActionId, Role | "you"> = {
 export const isFaucet = (id: ActionId): boolean => id === "fundTeacher" || id === "fundPrinter" || id === "fundNurse";
 export const isVisitorAction = (id: ActionId): boolean => SIGNER[id] === "you";
 
-/**
- * waiting   nothing sent yet (or about to be sent again after a round stored nothing)
- * checking  reading the chain to see whether the step already landed
- * signing   the key is signing and sending
- * onchain   sent; the validators have it
- * done      accepted, and the result is stored in this state
- * refused   the contract answered no and the page will not ask again by itself
- * stopped   the page could not send or follow the call; nothing is known to be wrong on chain
- */
-export type Phase = "waiting" | "checking" | "signing" | "onchain" | "done" | "refused" | "stopped";
-
-export type ActionState = {
-  phase: Phase;
-  /** the transaction being followed, or the one that did the step; "" when none */
-  hash: string;
-  /** a transaction of this step that stored nothing or was refused, kept for its explorer link */
-  last: string;
-  /** when a send began (ms); kept until its hash is stored, so a reload can tell a call may be in flight */
-  markedAt: number;
-  /** done, and found on the chain rather than sent in this sitting */
-  found: boolean;
-  /** done without having been sent: there was no time left, or no need */
-  skipped: boolean;
-  /** the refusal, the error, or what the last round did */
-  note: string;
-  tries: number;
-  /** not to be sent again before this moment (ms) */
-  notBefore: number;
-};
-
-export const blankAction = (): ActionState => ({ phase: "waiting", hash: "", last: "", markedAt: 0, found: false, skipped: false, note: "", tries: 0, notBefore: 0 });
-
-export type SpendInfo = { n: number; noticeUntil: number; windowUntil: number; postedSeq: number };
+/** A spend the page posted; `holdUntil` is 0 until two clear readings put it in its hold. */
+export type SpendInfo = { n: number; noticeUntil: number; windowUntil: number; postedSeq: number; holdUntil: number };
 export type MemberInfo = { number: string; filedSeq: number };
 export type ReadingSlot = "you" | "printer" | "nurse" | "contrast";
 
@@ -190,8 +175,8 @@ export type PracticeState = {
   s1: SpendInfo | null;
   s2: SpendInfo | null;
   readings: Partial<Record<ReadingSlot, Reading>>;
-  /** set when a second clear reading paid the first spend */
-  paid: { atto: string; to: string; by: ReadingSlot; potAtto: string } | null;
+  /** set when the release paid the first spend */
+  paid: { atto: string; to: string; potAtto: string } | null;
   /** the visitor asked for the contrast */
   contrast: boolean;
   actions: Record<ActionId, ActionState>;
@@ -225,16 +210,15 @@ export function blankState(register: string): PracticeState {
 export const deskLabel = (teacherAddress: string): string => "Practice desk " + teacherAddress.replace(/^0x/i, "").slice(0, 6).toLowerCase();
 
 /** A started practice desk for these keys. */
-export function startedState(register: string, keys: Record<KeyName, string>, addresses: Record<KeyName, string>, nowMs: number): PracticeState {
-  const lower = {} as Record<KeyName, string>;
-  for (const k of KEY_NAMES) lower[k] = addresses[k].toLowerCase();
-  return { ...blankState(register), startedAt: nowMs, keys: { ...keys }, addresses: lower, label: deskLabel(lower.teacher) };
+export function startedState(register: string, keys: Record<string, string>, addresses: Record<string, string>, nowMs: number): PracticeState {
+  const k = emptyKeys();
+  const lower = emptyKeys();
+  for (const n of KEY_NAMES) {
+    k[n] = keys[n];
+    lower[n] = addresses[n].toLowerCase();
+  }
+  return { ...blankState(register), startedAt: nowMs, keys: k, addresses: lower, label: deskLabel(lower.teacher) };
 }
-
-const KEY_RE = /^0x[0-9a-fA-F]{64}$/;
-const ADDRESS_RE = /^0x[0-9a-f]{40}$/;
-const HASH_RE = /^0x[0-9a-fA-F]{64}$/;
-const PHASES: Phase[] = ["waiting", "checking", "signing", "onchain", "done", "refused", "stopped"];
 
 /**
  * The stored state, or null when there is none for this register or it cannot be trusted.
@@ -253,39 +237,22 @@ export function parseState(raw: string, register: string): PracticeState | null 
   const o = v as Partial<PracticeState>;
   if (o.v !== PRACTICE_VERSION || typeof o.register !== "string" || o.register !== register.toLowerCase()) return null;
   if (!o.startedAt || !o.keys || !o.addresses || !o.actions) return null;
-  for (const k of KEY_NAMES) {
-    if (!KEY_RE.test(String(o.keys[k] ?? "")) || !ADDRESS_RE.test(String(o.addresses[k] ?? ""))) return null;
-  }
+  const keys = parseKeys(o, KEY_NAMES);
+  if (!keys) return null;
   const base = blankState(register);
-  const actions = base.actions;
-  for (const id of ACTIONS) {
-    const a = (o.actions as Record<string, Partial<ActionState>>)[id];
-    if (!a || typeof a !== "object") continue;
-    const phase = PHASES.includes(a.phase as Phase) ? (a.phase as Phase) : "waiting";
-    actions[id] = {
-      // Only an outcome survives a reload; anything that was in motion is looked at again.
-      phase: phase === "done" || phase === "refused" || phase === "stopped" ? phase : "waiting",
-      hash: typeof a.hash === "string" && HASH_RE.test(a.hash) ? a.hash : "",
-      last: typeof a.last === "string" && HASH_RE.test(a.last) ? a.last : "",
-      markedAt: Number(a.markedAt) > 0 ? Number(a.markedAt) : 0,
-      found: !!a.found,
-      skipped: !!a.skipped,
-      note: typeof a.note === "string" ? a.note : "",
-      tries: Number(a.tries) > 0 ? Number(a.tries) : 0,
-      notBefore: Number(a.notBefore) > 0 ? Number(a.notBefore) : 0,
-    };
-  }
   const spend = (s: unknown): SpendInfo | null => {
     const x = s as SpendInfo | null;
-    return x && Number(x.n) > 0 ? { n: Number(x.n), noticeUntil: Number(x.noticeUntil) || 0, windowUntil: Number(x.windowUntil) || 0, postedSeq: Number(x.postedSeq) || 0 } : null;
+    return x && Number(x.n) > 0
+      ? { n: Number(x.n), noticeUntil: Number(x.noticeUntil) || 0, windowUntil: Number(x.windowUntil) || 0, postedSeq: Number(x.postedSeq) || 0, holdUntil: Number(x.holdUntil) || 0 }
+      : null;
   };
   return {
     ...base,
     startedAt: Number(o.startedAt),
-    keys: { ...base.keys, ...o.keys },
-    addresses: { ...base.addresses, ...o.addresses },
-    label: typeof o.label === "string" ? o.label : deskLabel(String(o.addresses.teacher)),
-    desk: typeof o.desk === "string" && /^D[1-9]\d{0,8}$/.test(o.desk) ? o.desk : "",
+    keys: { ...base.keys, ...keys.keys },
+    addresses: { ...base.addresses, ...keys.addresses },
+    label: typeof o.label === "string" ? o.label : deskLabel(String(keys.addresses.teacher)),
+    desk: typeof o.desk === "string" && DESK_RE.test(o.desk) ? o.desk : "",
     members: o.members && typeof o.members === "object" ? { ...o.members } : {},
     visitor: typeof o.visitor === "string" && ADDRESS_RE.test(o.visitor) ? o.visitor : "",
     s1: spend(o.s1),
@@ -293,7 +260,7 @@ export function parseState(raw: string, register: string): PracticeState | null 
     readings: o.readings && typeof o.readings === "object" ? { ...o.readings } : {},
     paid: o.paid && typeof o.paid === "object" ? { ...o.paid } : null,
     contrast: !!o.contrast,
-    actions,
+    actions: parseActions(o.actions, ACTIONS) as Record<ActionId, ActionState>,
   };
 }
 
@@ -309,14 +276,14 @@ export function clearCount(s: PracticeState): number {
 
 /** True when the visitor and the print shop co-owner have both been read and one of them was not clear. */
 export function reserveNeeded(s: PracticeState): boolean {
-  return !!s.readings.you && !!s.readings.printer && !s.paid && clearCount(s) < 2;
+  return !!s.readings.you && !!s.readings.printer && !s.paid && !s.s1?.holdUntil && clearCount(s) < 2;
 }
 
 /**
  * True while the first spend is being carried: the visitor's countersignature is with the
  * validators, or it has been read and the print shop co-owner's has not landed yet. The same
  * member countersigns both spends, one call at a time, so the contrast waits for this to end
- * and the payment the visitor is watching for is not held up behind it.
+ * and the hold the visitor is watching for is not held up behind it.
  */
 export function firstSpendBusy(s: PracticeState): boolean {
   const mine = s.actions.signYou;
@@ -341,8 +308,12 @@ export function blocked(s: PracticeState, id: ActionId, now: number): string {
       return done(s, "fundTeacher") ? "" : "the teacher's account has no test GEN for the pot yet";
     case "enrolTeacher":
     case "enrolPrinter":
-    case "enrolNurse":
-      return done(s, "open") ? "" : "the desk is not open yet";
+    case "enrolNurse": {
+      if (!done(s, "open")) return "the desk is not open yet";
+      // Enrolling stakes the desk's member stake, so the account needs its test GEN first.
+      const fund = ("fund" + id.slice(5)) as ActionId;
+      return done(s, fund) ? "" : "this member's account has no test GEN for the stake yet";
+    }
     case "enrolYou":
       if (!done(s, "open")) return "the desk is not open yet";
       // The forward-only rule, enforced by the page too: nobody may enrol into a reading after the spend exists.
@@ -362,6 +333,10 @@ export function blocked(s: PracticeState, id: ActionId, now: number): string {
     case "signNurse":
       if (!done(s, "signPrinter")) return "the print shop co-owner countersigns first";
       return reserveNeeded(s) ? "" : "two clear readings need no third";
+    case "release1":
+      if (!s.s1 || !s.s1.holdUntil) return "the spend is not in its hold yet";
+      if (!now) return "the chain's clock has not been read yet";
+      return now >= s.s1.holdUntil + NOTICE_MARGIN_S ? "" : "the hold is still running";
     case "post2":
       if (!s.contrast) return "the contrast has not been asked for";
       return done(s, "post1") ? "" : "the first spend is posted first";
@@ -387,31 +362,7 @@ export function identifyTooLate(s: PracticeState, now: number): boolean {
  * own two are never in this list: they wait for the visitor's click.
  */
 export function nextHeld(s: PracticeState, now: number, nowMs: number): ActionId[] {
-  const out: ActionId[] = [];
-  for (const id of ACTIONS) {
-    if (isVisitorAction(id)) continue;
-    const a = s.actions[id];
-    if (a.phase === "done" || a.phase === "refused" || a.phase === "stopped") continue;
-    if (a.notBefore > nowMs) continue;
-    if (blocked(s, id, now)) continue;
-    out.push(id);
-  }
-  return out;
-}
-
-/** How long a call that may have left the browser is waited for before it is sent again. */
-export const MARK_WAIT_MS = 45_000;
-
-/**
- * What to do with an action before anything is sent.
- *   follow     a transaction of ours exists: follow it, never send
- *   wait       a send began and its hash was lost (the page closed): keep reading the chain
- *   read       read the chain once; send only if the step is not there
- */
-export function plan(a: ActionState, nowMs: number): "follow" | "wait" | "read" {
-  if (a.hash) return "follow";
-  if (a.markedAt > 0 && nowMs - a.markedAt < MARK_WAIT_MS) return "wait";
-  return "read";
+  return heldNext(s, ACTIONS, (id) => isVisitorAction(id as ActionId), (id) => blocked(s, id as ActionId, now), nowMs) as ActionId[];
 }
 
 // ---- the seven rows the page shows -------------------------------------------------------
@@ -423,7 +374,7 @@ export const ROWS: { id: RowId; actions: ActionId[] }[] = [
   { id: "enrol", actions: ["enrolYou"] },
   { id: "spend", actions: ["post1"] },
   { id: "sign", actions: ["signYou"] },
-  { id: "pay", actions: ["signPrinter", "signNurse"] },
+  { id: "pay", actions: ["signPrinter", "signNurse", "release1"] },
   { id: "contrast", actions: ["post2", "identify2", "sign2"] },
 ];
 
@@ -433,6 +384,8 @@ export type RowPhase = Phase | "recused";
 export function rowPhase(s: PracticeState, row: RowId): RowPhase {
   const ids = ROWS.find((r) => r.id === row)!.actions.filter((id) => {
     if (id === "signNurse") return reserveNeeded(s) || s.actions.signNurse.phase !== "waiting";
+    // A spend that never reached its hold has nothing to release.
+    if (id === "release1") return !!s.s1?.holdUntil || s.actions.release1.phase !== "waiting";
     return true;
   });
   const phases = ids.map((id) => s.actions[id].phase);

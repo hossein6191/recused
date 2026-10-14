@@ -7,7 +7,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const m = /^(D[1-9]\d{0,8})[-:_]S?([1-9]\d{0,8})$/i.exec(decodeURIComponent(id));
   return {
     title: m ? `Spend S${m[2]} of ${m[1].toUpperCase()}` : "Spend",
-    description: "One spend: the document the contract built and judged, who identified the payee, and every countersignature or recusal with its stored pair.",
+    description: "One spend: the document the contract built and judged, who identified the payee, every countersignature or recusal with its stored pair, the hold, and every register page cited against a signature.",
   };
 }
 

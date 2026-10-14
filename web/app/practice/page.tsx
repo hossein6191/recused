@@ -1,21 +1,29 @@
 "use client";
 
-// The practice desk: one visitor, one wallet, from arriving to a judged reading and a payment.
+// The practice desk: one visitor, one wallet, two tracks.
 //
-// A spend needs a poster and two countersigners, and a countersigner must have enrolled before
-// the spend was posted, so a visitor who arrives alone can only ever be refused as filed too
-// late. This page opens a new desk and plays its other members with accounts it holds itself,
-// and says so. Every step is a real transaction; the visitor's own two (the disclosure and the
-// countersignature) are signed by the visitor's wallet. The script is lib/practice.ts and the
-// engine that signs and follows is lib/practice-engine.ts; this file only shows the state.
+// "Be read and paid": a spend needs a poster and two countersigners, and a countersigner must have
+// enrolled before the spend was posted, so a visitor who arrives alone can only ever be refused as
+// filed too late. This track opens a new desk and plays its other members with accounts it holds
+// itself, and says so. The visitor's own two steps (the disclosure, which stakes, and the
+// countersignature) are signed by the visitor's wallet. The script is lib/practice.ts and its
+// engine lib/practice-engine.ts.
+//
+// "Catch a hidden conflict" (version 2): the page's accounts open a desk that names the
+// demonstration register, a member who hid a directorship of the payee reads clear, the spend goes
+// into its hold, and the visitor cites the register page and is paid from her stake. The script is
+// lib/catch.ts, its engine lib/catch-engine.ts, and its rows components/catch-track.tsx. This file
+// only shows the state.
 
 import { SectionHelp } from "@/components/section-help";
 import * as React from "react";
 import Link from "next/link";
-import { ArrowRight, Check, CircleDot, FileSignature, FlaskConical, Hourglass, Loader2, Play, RotateCcw, Signature, TriangleAlert } from "lucide-react";
+import { ArrowRight, FileSignature, FlaskConical, Gavel, Hourglass, Play, RotateCcw, Signature, TriangleAlert, Wallet } from "lucide-react";
 
-import { Address, TxLink } from "@/components/address";
+import { Address } from "@/components/address";
+import { CatchTrack } from "@/components/catch-track";
 import { DisclosureForm, disclosureProblem, type Disclosure } from "@/components/disclosure-form";
+import { ActionLine as SharedActionLine, StepRow, WrongWallet } from "@/components/practice-rows";
 import { NoRegister } from "@/components/read-state";
 import { ReadingCard } from "@/components/reading";
 import { Button } from "@/components/ui/button";
@@ -23,18 +31,22 @@ import { useChainSeconds } from "@/components/use-clock";
 import { useLocal } from "@/components/use-local";
 import { useMe } from "@/components/use-me";
 import { useRead } from "@/components/use-read";
+import { PublicNameField, VersionOneNotice, WaitPanel } from "@/components/v2";
 import { WalletGate } from "@/components/wallet-gate";
-import { LIMITS, contractAddress, isMock, readLimits, spendPath, type Reading, type TxStatus } from "@/lib/chain";
-import { gen, short, span } from "@/lib/format";
+import { readItem, writeItem } from "@/lib/browser-store";
+import { LIMITS, contractAddress, isMock, memberPath, publicNameProblem, readLimits, spendPath, type Reading } from "@/lib/chain";
+import { gen, minutesLabel, short, span } from "@/lib/format";
 import {
   CAST,
+  HOLD_MINUTES,
   POT_ATTO,
   ROLES,
-  ROWS,
   SIGNER,
   SPEND1,
   SPEND2,
+  STAKE_ATTO,
   VISITOR_DISCLOSURE,
+  VISITOR_PUBLIC_NAME,
   blocked,
   clearCount,
   firstSpendBusy,
@@ -43,17 +55,86 @@ import {
   rowPhase,
   type ActionId,
   type RowId,
-  type RowPhase,
   type SpendInfo,
 } from "@/lib/practice";
+import { TRACK_KEY } from "@/lib/catch";
 import * as practice from "@/lib/practice-engine";
 import type { PracticeView } from "@/lib/practice-engine";
+import { waitingCopy } from "@/lib/waiting";
 import { cn } from "@/lib/utils";
 
 const card = "rounded-2xl border bg-card p-5 sm:p-6";
 const link = "text-primary underline-offset-4 hover:underline";
 
+type Track = "read" | "catch";
+const trackNow = (): Track => (readItem(TRACK_KEY) === "catch" ? "catch" : "read");
+
 export default function PracticePage() {
+  const track = useLocal(trackNow, "read");
+  // A link may carry ?track=catch to open the second track.
+  React.useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("track");
+    if (t === "catch" || t === "read") writeItem(TRACK_KEY, t === "catch" ? "catch" : null);
+  }, []);
+  const choose = (t: Track) => writeItem(TRACK_KEY, t === "catch" ? "catch" : null);
+
+  return (
+    <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8">
+      <header className="space-y-3">
+        <p className="text-xs font-semibold tracking-widest text-primary uppercase">Practice desk</p>
+        <h1 className="text-3xl font-bold tracking-tight">The whole of it, alone</h1>
+        <p className="text-muted-foreground">
+          A spend needs three members: one who posts it and two who countersign, each of whom filed a disclosure before the spend
+          existed. Alone, you could only ever be refused as filed too late. So this page opens a new desk for you and plays its other
+          members with accounts it holds itself, and says so. Pick a track.
+        </p>
+      </header>
+      <div role="tablist" aria-label="Practice tracks" className="grid gap-3 sm:grid-cols-2">
+        <TrackTab
+          active={track === "read"}
+          onClick={() => choose("read")}
+          icon={<Signature className="size-4 text-primary" />}
+          title="Be read and paid"
+          body="File a disclosure, countersign a spend, be read by the validators, and watch the fund pay after a short hold. About fifteen minutes."
+        />
+        <TrackTab
+          active={track === "catch"}
+          onClick={() => choose("catch")}
+          icon={<Gavel className="size-4 text-primary" />}
+          title="Catch a hidden conflict"
+          badge="New in version 2"
+          body="A member hid a directorship of the payee and reads clear. Cite the public register page, and her stake pays you in that transaction. About fifteen minutes."
+        />
+      </div>
+      <VersionOneNotice />
+      {track === "catch" ? <CatchTrack /> : <ReadTrack />}
+    </div>
+  );
+}
+
+function TrackTab({ active, onClick, icon, title, body, badge }: { active: boolean; onClick: () => void; icon: React.ReactNode; title: string; body: string; badge?: string }) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      data-track={title}
+      className={cn(
+        "cursor-pointer space-y-1.5 rounded-2xl border p-4 text-left text-sm transition-[border-color,background-color] duration-150",
+        active ? "border-primary/60 bg-primary/10" : "bg-card hover:border-primary/30",
+      )}
+    >
+      <span className="flex flex-wrap items-center gap-2 font-semibold">
+        {icon} {title}
+        {badge ? <span className="rounded-full border border-brand/50 bg-brand/15 px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase">{badge}</span> : null}
+      </span>
+      <span className="block text-muted-foreground">{body}</span>
+    </button>
+  );
+}
+
+function ReadTrack() {
   const view = React.useSyncExternalStore(practice.subscribe, practice.snapshot, practice.serverSnapshot);
   const me = useMe();
   const hasRegister = useLocal(() => isMock || !!contractAddress(), true);
@@ -67,29 +148,18 @@ export default function PracticePage() {
 
   const now = useChainSeconds(view.clock);
   const chainNow = view.clock ? now : 0;
-  const current = ROWS.find((r) => {
-    const p = rowPhase(s, r.id);
+  const current = ROWS_ORDER.find((id) => {
+    const p = rowPhase(s, id);
     return p !== "done" && p !== "recused";
-  })?.id;
+  });
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8">
-      <header className="space-y-3">
-        <p className="text-xs font-semibold tracking-widest text-primary uppercase">Practice desk</p>
-        <h1 className="text-3xl font-bold tracking-tight">The whole of it, alone, in about ten minutes</h1>
-        <p className="text-muted-foreground">
-          A spend needs three members: one who posts it and two who countersign. A countersigner must have filed a disclosure
-          before the spend was posted, so on a desk that already has spends a newcomer can only be refused as filed too late.
-          This page opens a new desk for you and plays its other members. You file your own disclosure, countersign a spend
-          posted after it, are read by the validators, and watch the fund pay.
-        </p>
-      </header>
-
+    <div className="space-y-6">
       <section className={cn(card, "space-y-3 text-sm")} aria-labelledby="held-title">
         <h2 id="held-title" className="flex items-center gap-2 text-lg font-semibold">
           <FlaskConical className="size-4 text-primary" /> What the page holds, and what is yours
-        <SectionHelp k="practice-accounts" />
-      </h2>
+          <SectionHelp k="practice-accounts" />
+        </h2>
         <p className="text-foreground/90">
           The page makes three practice accounts, held in this browser, playing the other members of your desk. They are not
           anybody&apos;s wallet and hold test GEN only. Their keys are made here when you press the button, kept in this
@@ -106,7 +176,8 @@ export default function PracticePage() {
         </ul>
         <p className="text-muted-foreground">
           You are the only person here. Your disclosure and your countersignature are signed by your own wallet and by nothing
-          else.{" "}
+          else, and enrolling stakes {gen(STAKE_ATTO)} of your test GEN, which you can take back from your member page once the spend
+          you signed is paid.{" "}
           {isMock
             ? "This is demo mode: the contract is an in-memory copy and its readings are scripted, as the bar above says."
             : "Every step is a real transaction on GenLayer Studio that you can open in the explorer, and nothing is decided in advance: the validators read what you actually file."}
@@ -128,10 +199,10 @@ export default function PracticePage() {
           <ol className="space-y-3">
             <AccountsRow view={view} active={current === "accounts"} />
             <DeskRow view={view} active={current === "desk"} />
-            <EnrolRow view={view} me={me.address} active={current === "enrol"} />
+            <EnrolRow view={view} me={me.address} balance={me.balanceAtto} active={current === "enrol"} />
             <SpendRow view={view} now={chainNow} active={current === "spend"} />
             <SignRow view={view} me={me.address} now={chainNow} active={current === "sign"} />
-            <PayRow view={view} active={current === "pay"} />
+            <PayRow view={view} me={me.address} now={chainNow} active={current === "pay"} />
             <ContrastRow view={view} now={chainNow} active={current === "contrast"} />
           </ol>
           <Afterwards view={view} />
@@ -140,6 +211,8 @@ export default function PracticePage() {
     </div>
   );
 }
+
+const ROWS_ORDER: RowId[] = ["accounts", "desk", "enrol", "spend", "sign", "pay", "contrast"];
 
 // ---- before it starts -------------------------------------------------------------------------
 
@@ -152,11 +225,17 @@ function StartCard({ watching }: { watching: boolean }) {
       </h2>
       <ol className="list-decimal space-y-1.5 pl-5 text-sm text-muted-foreground">
         <li>The page makes the practice accounts and asks the test faucet for 10 test GEN each.</li>
-        <li>The teacher opens a new desk with a pot of {gen(POT_ATTO)}, and the three practice members file their disclosures.</li>
-        <li className="text-foreground">You file your own disclosure, with your wallet. This comes before the spend, and the page waits for it.</li>
+        <li>The teacher opens a new desk with a pot of {gen(POT_ATTO)}, and the three practice members file their disclosures, each staking {gen(STAKE_ATTO)}.</li>
+        <li className="text-foreground">
+          You file your own disclosure, with your wallet, under a public name, and stake {gen(STAKE_ATTO)} of test GEN. This comes before the
+          spend, and the page waits for it.
+        </li>
         <li>The teacher posts a spend that pays a locksmith. Its notice window runs: five minutes, the shortest the contract takes.</li>
         <li className="text-foreground">You countersign, with your wallet. The validators read your disclosure against the spend under both branches.</li>
-        <li>The print shop co-owner countersigns. If both readings are clear, that second one pays the locksmith from the pot.</li>
+        <li>
+          The print shop co-owner countersigns. If both readings are clear, the spend waits {minutesLabel(HOLD_MINUTES)} in its hold, open to
+          challenge, and then the teacher releases it and the locksmith is paid from the pot.
+        </li>
         <li>One more click shows the other outcome: a spend that pays the print shop, and its co-owner refused on it.</li>
       </ol>
       <div className="flex flex-wrap items-center gap-3">
@@ -164,7 +243,8 @@ function StartCard({ watching }: { watching: boolean }) {
           <Play /> Set up my practice desk
         </Button>
         <p className="text-xs text-muted-foreground">
-          About ten minutes in all, five of them the notice window. You can connect your wallet now or when step 3 asks.
+          About fifteen minutes in all: five of them the notice window and five the hold. You can connect your wallet now or when step
+          3 asks; it needs {gen(STAKE_ATTO)} of test GEN for the stake.
         </p>
       </div>
       {watching ? (
@@ -176,112 +256,26 @@ function StartCard({ watching }: { watching: boolean }) {
 
 // ---- the row frame ------------------------------------------------------------------------------
 
-const PHASE_WORD: Record<RowPhase, string> = {
-  waiting: "waiting",
-  checking: "reading the chain",
-  signing: "signing",
-  onchain: "on chain",
-  done: "done",
-  refused: "refused",
-  stopped: "stopped",
-  recused: "refused",
-};
-const PHASE_STYLE: Record<RowPhase, string> = {
-  waiting: "border-border text-muted-foreground",
-  checking: "border-primary/40 bg-primary/10 text-primary",
-  signing: "border-primary/40 bg-primary/10 text-primary",
-  onchain: "border-primary/40 bg-primary/10 text-primary",
-  done: "border-keeps/40 bg-keeps/10 text-keeps",
-  refused: "border-gold/40 bg-gold/10 text-gold",
-  stopped: "border-breaks/40 bg-breaks/10 text-breaks",
-  recused: "border-gold/40 bg-gold/10 text-gold",
-};
-
-function Pill({ phase, className }: { phase: RowPhase; className?: string }) {
-  const busy = phase === "checking" || phase === "signing" || phase === "onchain";
-  return (
-    <span className={cn("inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap", PHASE_STYLE[phase], className)}>
-      {busy ? <Loader2 className="size-3 animate-spin" /> : null}
-      {PHASE_WORD[phase]}
-    </span>
-  );
-}
-
 function Row({ n, id, title, view, active, children }: { n: number; id: RowId; title: string; view: PracticeView; active: boolean; children: React.ReactNode }) {
-  const phase = rowPhase(view.state, id);
-  const finished = phase === "done" || phase === "recused";
   return (
-    <li
-      data-row={id}
-      data-phase={phase}
-      className={cn("flex gap-3 rounded-2xl border p-4 sm:p-5", active ? "border-primary/50 bg-primary/5" : "bg-card")}
-    >
-      <span
-        className={cn(
-          "mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
-          finished ? "border-keeps/50 bg-keeps/15 text-keeps" : active ? "border-primary text-primary" : "border-border text-muted-foreground",
-        )}
-        aria-hidden="true"
-      >
-        {finished ? <Check className="size-3.5" /> : active ? <CircleDot className="size-3.5" /> : n}
-      </span>
-      <div className="min-w-0 flex-1 space-y-3 text-sm">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-base font-semibold">
-            <span className="sr-only">Step {n}: </span>
-            {title}
-          </h2>
-          <Pill phase={phase} />
-        </div>
-        {children}
-      </div>
-    </li>
+    <StepRow n={n} id={id} title={title} phase={rowPhase(view.state, id)} active={active}>
+      {children}
+    </StepRow>
   );
-}
-
-const STAGE_WORD: Record<string, string> = {
-  PENDING: "pending",
-  PROPOSING: "a validator is proposing the result",
-  COMMITTING: "the validators are committing their votes",
-  REVEALING: "the validators are revealing their votes",
-  ACCEPTED: "accepted",
-  FINALIZED: "finalized",
-  UNKNOWN: "not listed by the network yet",
-};
-
-function liveWords(live: TxStatus | undefined, judged: boolean): string {
-  if (!live) return "sent, waiting for the network";
-  const stage = STAGE_WORD[live.status] ?? live.status.toLowerCase();
-  const total = live.votes.agree + live.votes.disagree + live.votes.idle;
-  return judged && total > 0 ? `${stage} · ${live.votes.agree} agree, ${live.votes.disagree} disagree, ${live.votes.idle} idle` : stage;
 }
 
 /** One call: who makes it, where it stands, its transaction, and what the contract said if it said no. */
 function ActionLine({ id, label, view, judged }: { id: ActionId; label: string; view: PracticeView; judged?: boolean }) {
-  const a = view.state.actions[id];
-  const held = SIGNER[id] !== "you";
-  const hash = a.hash || a.last;
   return (
-    <li data-action={id} data-phase={a.phase} className="space-y-1 rounded-lg border bg-background/40 px-3 py-2 text-xs">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <span className="text-foreground/90">{label}</span>
-        <span className="flex flex-wrap items-center gap-2">
-          {hash ? <TxLink hash={hash} /> : null}
-          <Pill phase={a.phase} />
-        </span>
-      </div>
-      {a.phase === "onchain" ? <p className="text-muted-foreground">{liveWords(view.live[id], !!judged)}</p> : null}
-      {a.phase === "checking" ? <p className="text-muted-foreground">Reading the chain first, so that nothing is sent twice.</p> : null}
-      {a.phase === "done" && a.found && !a.skipped ? (
-        <p className="text-muted-foreground">Found on the chain already, so it was not sent again.</p>
-      ) : null}
-      {a.note ? <p className={a.phase === "done" ? "text-muted-foreground" : "text-gold"}>{a.note}</p> : null}
-      {held && (a.phase === "refused" || a.phase === "stopped") ? (
-        <Button type="button" variant="outline" size="sm" onClick={() => practice.retry(id)}>
-          <RotateCcw /> {a.hash ? "Check again" : "Try again"}
-        </Button>
-      ) : null}
-    </li>
+    <SharedActionLine
+      id={id}
+      label={label}
+      action={view.state.actions[id]}
+      live={view.live[id]}
+      held={SIGNER[id] !== "you"}
+      judged={judged}
+      onRetry={() => practice.retry(id)}
+    />
   );
 }
 
@@ -294,7 +288,7 @@ function AccountsRow({ view, active }: { view: PracticeView; active: boolean }) 
     <Row n={1} id="accounts" title="Three practice accounts" view={view} active={active}>
       <p className="text-muted-foreground">
         {phase === "done"
-          ? "Three keys were made in this browser and each account holds test GEN from Studio's faucet. Calls on Studio cost no fee; the teacher needs the GEN for the desk's pot. Next: the teacher opens a desk."
+          ? "Three keys were made in this browser and each account holds test GEN from Studio's faucet. Calls on Studio cost no fee; the GEN is for the desk's pot and each member's stake. Next: the teacher opens a desk."
           : "The page has made three keys in this browser and is asking Studio's test faucet for 10 test GEN for each. This takes a few seconds."}
       </p>
       <ul className="space-y-1.5">
@@ -317,13 +311,14 @@ function DeskRow({ view, active }: { view: PracticeView; active: boolean }) {
       <p className="text-muted-foreground">
         {phase === "done" ? (
           <>
-            Desk {s.desk}, named {s.label}, is open with {gen(POT_ATTO)} in its pot, and the three practice members have filed
-            what is printed below. Next: your own disclosure.
+            Desk {s.desk}, named {s.label}, is open with {gen(POT_ATTO)} in its pot, a member stake of {gen(STAKE_ATTO)} and a hold of{" "}
+            {minutesLabel(HOLD_MINUTES)}, and the three practice members have filed what is printed below. Next: your own disclosure.
           </>
         ) : (
           <>
-            The teacher opens a desk named {s.label} and sends {gen(POT_ATTO)} with the call as its pot. Then each practice
-            member files a disclosure, as every member of a desk must. Each call takes a few seconds to be accepted.
+            The teacher opens a desk named {s.label} and sends {gen(POT_ATTO)} with the call as its pot, fixing a member stake of{" "}
+            {gen(STAKE_ATTO)} and a hold of {minutesLabel(HOLD_MINUTES)}. Then each practice member files a disclosure and stakes, as every
+            member of a desk must. Each call takes a few seconds to be accepted.
           </>
         )}
       </p>
@@ -339,7 +334,7 @@ function DeskRow({ view, active }: { view: PracticeView; active: boolean }) {
           {ROLES.map((r) => (
             <li key={r} className="space-y-1">
               <p className="font-medium text-foreground">
-                {CAST[r].name}
+                {CAST[r].name}, public name {CAST[r].publicName}
                 {s.members[r] ? (
                   <span className="font-normal text-muted-foreground">
                     {" "}
@@ -364,30 +359,25 @@ function DeskRow({ view, active }: { view: PracticeView; active: boolean }) {
 
 // ---- 3: the visitor enrols --------------------------------------------------------------------------------
 
-function WrongWallet({ expected, me }: { expected: string; me: string }) {
-  return (
-    <p role="alert" className="rounded-lg border border-gold/40 bg-gold/10 p-3 text-xs">
-      This practice desk was set up for {short(expected)}, and {me ? `the wallet now connected is ${short(me)}` : "no wallet is connected now"}.{" "}
-      Switch back to that account to carry on, or start a new practice desk at the bottom of this page.
-    </p>
-  );
-}
-
-function EnrolRow({ view, me, active }: { view: PracticeView; me: string; active: boolean }) {
+function EnrolRow({ view, me, balance, active }: { view: PracticeView; me: string; balance: bigint; active: boolean }) {
   const s = view.state;
   const a = s.actions.enrolYou;
   const limitsRead = useRead(() => readLimits(), [], { enabled: !!s.desk && a.phase !== "done" });
   const limits = limitsRead.data ?? LIMITS;
   const [value, setValue] = React.useState<Disclosure>(VISITOR_DISCLOSURE);
+  const [publicName, setPublicName] = React.useState(VISITOR_PUBLIC_NAME);
   const [error, setError] = React.useState("");
   const busy = a.phase === "checking" || a.phase === "signing" || a.phase === "onchain";
   const why = blocked(s, "enrolYou", 0);
   const tooLate = !!s.s1 && a.phase !== "done";
 
   const submit = () => {
-    const p = disclosureProblem(value, limits);
+    const p =
+      disclosureProblem(value, limits) ||
+      publicNameProblem(publicName.trim()) ||
+      (balance < STAKE_ATTO ? `Enrolling stakes ${gen(STAKE_ATTO)} and your wallet holds ${gen(balance)}. The wallet menu at the top right gets 10 test GEN from the faucet.` : "");
     setError(p);
-    if (!p) practice.enrolYou(value);
+    if (!p) practice.enrolYou({ ...value, publicName: publicName.trim() });
   };
 
   return (
@@ -396,8 +386,8 @@ function EnrolRow({ view, me, active }: { view: PracticeView; me: string; active
         <>
           <p className="text-muted-foreground">
             You are member {s.members.you.number} of {s.label}, filed at sequence number {s.members.you.filedSeq} from{" "}
-            <span className="font-mono">{short(s.visitor)}</span>. The spend that comes next takes a higher number, so your
-            disclosure will be read against it.
+            <span className="font-mono">{short(s.visitor)}</span>, with {gen(STAKE_ATTO)} staked on the desk. The spend that comes next
+            takes a higher number, so your disclosure will be read against it.
           </p>
           <ul className="space-y-1.5">
             <ActionLine id="enrolYou" view={view} label="Your disclosure" />
@@ -425,6 +415,12 @@ function EnrolRow({ view, me, active }: { view: PracticeView; me: string; active
             </p>
           </div>
           <DisclosureForm value={value} onChange={setValue} limits={limits} disabled={busy} />
+          <PublicNameField value={publicName} onChange={setPublicName} disabled={busy} id="practice-public-name" />
+          <p className="rounded-lg border bg-background/40 p-3 text-xs text-muted-foreground">
+            <Wallet className="mr-1 inline size-3.5 text-primary" />
+            Filing stakes {gen(STAKE_ATTO)} of your test GEN on this desk, sent with the call. It stays yours: once the spend you countersign has
+            been paid, retire from your member page and take it back. A wrong amount, or any refusal, returns it in the same transaction.
+          </p>
           {error ? (
             <p role="alert" className="text-sm text-gold">
               {error}
@@ -436,7 +432,9 @@ function EnrolRow({ view, me, active }: { view: PracticeView; me: string; active
                 <FileSignature /> File my disclosure{s.desk ? ` on ${s.desk}` : ""}
               </Button>
               <p className="text-xs text-muted-foreground">
-                {why ? `The button unlocks in a moment: ${why}.` : "One transaction from your wallet, accepted in a few seconds. Calls on Studio cost no fee."}
+                {why
+                  ? `The button unlocks in a moment: ${why}.`
+                  : `One transaction from your wallet, accepted in a few seconds. It sends your stake of ${gen(STAKE_ATTO)}; calls on Studio cost no fee.`}
               </p>
             </div>
           </WalletGate>
@@ -617,25 +615,32 @@ function SignRow({ view, me, now, active }: { view: PracticeView; me: string; no
 
 // ---- 6: the second countersignature and the payment -------------------------------------------------------------------
 
-function PayRow({ view, active }: { view: PracticeView; active: boolean }) {
+function PayRow({ view, me, now, active }: { view: PracticeView; me: string; now: number; active: boolean }) {
   const s = view.state;
   const reserve = reserveNeeded(s) || s.actions.signNurse.phase !== "waiting";
   const settled = s.actions.signPrinter.phase === "done" && (!reserve || s.actions.signNurse.phase === "done");
-  const balance = view.balances.locksmith;
+  const balance = view.balances.locksmith ?? "";
   const landed = !!s.paid && balance !== "" && BigInt(balance) >= BigInt(s.paid.atto || "0");
+  const holdUntil = s.s1?.holdUntil ?? 0;
+  const role = s.visitor && me === s.visitor && s.readings.you?.verdict === "clear" ? "signer" : "anyone";
   return (
-    <Row n={6} id="pay" title="The print shop co-owner countersigns, and the fund pays" view={view} active={active}>
+    <Row n={6} id="pay" title="The print shop co-owner countersigns, the hold runs, and the fund pays" view={view} active={active}>
       {!s.readings.printer ? (
         <p className="text-muted-foreground">
           After your reading, the print shop co-owner countersigns the same spend. That member filed a print shop, and this
-          spend pays a locksmith, so nothing they filed should move. A second clear reading pays the payee in that same
-          transaction; the contract never pays on one.
+          spend pays a locksmith, so nothing they filed should move. A second clear reading puts the spend in its hold of{" "}
+          {minutesLabel(HOLD_MINUTES)}; it never pays on one signature, and it never pays before the hold has run.
         </p>
       ) : s.paid ? (
         <p className="text-foreground/90">
-          Paid. The second clear countersignature sent {gen(s.paid.atto)} from the pot to <span className="font-mono">{short(s.paid.to)}</span>{" "}
+          Paid. After the hold, the teacher&apos;s release sent {gen(s.paid.atto)} from the pot to <span className="font-mono">{short(s.paid.to)}</span>{" "}
           in its own transaction, after the spend was marked paid
           {s.paid.potAtto ? `. The pot now holds ${gen(s.paid.potAtto)}` : ""}.
+        </p>
+      ) : holdUntil ? (
+        <p className="text-foreground/90">
+          Two clear readings are counted, and the spend is in its hold. Nobody has been paid yet: during the hold anyone may cite a page of
+          the desk&apos;s register against either signature. When it ends, the teacher releases the payment.
         </p>
       ) : settled ? (
         <p className="text-foreground/90">
@@ -652,7 +657,27 @@ function PayRow({ view, active }: { view: PracticeView; active: boolean }) {
       <ul className="space-y-1.5">
         <ActionLine id="signPrinter" view={view} label="The print shop co-owner countersigns" judged />
         {reserve ? <ActionLine id="signNurse" view={view} label="The night nurse countersigns, from reserve" judged /> : null}
+        {holdUntil ? <ActionLine id="release1" view={view} label="The teacher releases the spend once the hold has run" /> : null}
       </ul>
+      {holdUntil && !s.paid && s.s1 ? (
+        <>
+          <WaitPanel
+            tone="busy"
+            title={now ? (now < holdUntil ? `In its hold for another ${span(holdUntil - now)}` : "The hold has ended; the release is on its way") : "In its hold"}
+            lines={waitingCopy(
+              now < holdUntil || !now
+                ? { kind: "holding", label: `S${s.s1.n}`, now, holdUntil, amountAtto: SPEND1.amountAtto.toString(), stakeAtto: STAKE_ATTO.toString(), bondAtto: "50000000000000000", challenges: 0 }
+                : { kind: "releasable", label: `S${s.s1.n}`, amountAtto: SPEND1.amountAtto.toString() },
+              role,
+            )}
+          />
+          {isMock && now && now < holdUntil ? (
+            <Button type="button" variant="outline" size="sm" onClick={() => practice.skipWait()}>
+              <Hourglass /> Demo mode only: skip the hold
+            </Button>
+          ) : null}
+        </>
+      ) : null}
       {s.readings.printer ? <ReadingBlock reading={s.readings.printer} /> : null}
       {s.readings.nurse ? <ReadingBlock reading={s.readings.nurse} /> : null}
       {s.paid ? (
@@ -746,7 +771,7 @@ function ContrastRow({ view, now, active }: { view: PracticeView; now: number; a
 function Afterwards({ view }: { view: PracticeView }) {
   const s = view.state;
   const [sure, setSure] = React.useState(false);
-  const finished = !!s.readings.you && s.actions.signPrinter.phase === "done";
+  const finished = !!s.readings.you && s.actions.signPrinter.phase === "done" && (!s.s1?.holdUntil || !!s.paid);
   return (
     <section className={cn(card, "space-y-3 text-sm")} aria-labelledby="after-title">
       <h2 id="after-title" className="text-lg font-semibold">
@@ -755,8 +780,18 @@ function Afterwards({ view }: { view: PracticeView }) {
       </h2>
       {finished ? (
         <p className="text-muted-foreground">
-          A disclosure filed before a spend, a countersignature read under both branches, and money that moved only when two
-          members were read clear. {s.readings.contrast ? "And a member refused on a spend that pays their own shop." : "Step 7 shows the refusal."}
+          A disclosure filed before a spend, a countersignature read under both branches, a hold nobody challenged, and money that
+          moved only when two members were read clear and the hold had run.{" "}
+          {s.readings.contrast ? "And a member refused on a spend that pays their own shop." : "Step 7 shows the refusal."} Your stake of{" "}
+          {gen(STAKE_ATTO)} is still on {s.desk}: retire from your{" "}
+          <Link href={memberPath(s.desk)} className={link}>
+            member page
+          </Link>{" "}
+          and take it back once the spend you signed has ended. The other track,{" "}
+          <button type="button" className={link} onClick={() => writeItem(TRACK_KEY, "catch")}>
+            catch a hidden conflict
+          </button>
+          , shows what a stake is for.
         </p>
       ) : (
         <p className="text-muted-foreground">

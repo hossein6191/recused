@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
 import { useLocal } from "@/components/use-local";
 import { readItem, writeItem, notify } from "@/lib/browser-store";
+import { TRACK_KEY } from "@/lib/catch";
 
 const KEY = "recused:welcomed";
 
@@ -20,7 +21,8 @@ const STEPS: [string, string][] = [
   ["Somebody asks the fund to pay", "A member posts a spend: who is paid, how much, and what for."],
   ["Two other members countersign", "The one who posted it may not approve it. Two others must."],
   ["The validators check each signer", "The contract asks GenLayer's validators one question two ways: does this payment change this member's position if it goes ahead, and if it does not?"],
-  ["Money moves, or the signer is refused", "Two clear answers and the payee is paid in that same transaction. A member whose interests move is recused, and the refusal is published."],
+  ["A short hold, then the money moves", "Two clear answers put the spend in a short hold; then anyone may release it and the payee is paid. A member whose interests move is recused, in public."],
+  ["What a member hid, a register can prove", "During the hold anyone may cite a page of a public register the desk named. If every validator reads it as showing a relation the member hid, the signature is struck and the stake pays whoever cited it."],
 ];
 
 const WORDS: [string, string][] = [
@@ -31,6 +33,9 @@ const WORDS: [string, string][] = [
   ["Countersign", "to approve a spend somebody else posted"],
   ["UU / GU", "the stored result: U unaffected, G gains, L loses; first if it is paid, then if it is not"],
   ["Recused", "refused for this one spend, because your interests move; not a finding against you"],
+  ["Stake", "what every member puts up to sign; a struck signature costs all of it"],
+  ["Hold", "the wait between the second clear countersignature and the payment"],
+  ["Challenge", "citing a register page against a counted signature, with a small bond"],
 ];
 
 /** Open the welcome box again (used by the header button). */
@@ -88,6 +93,25 @@ export function Welcome() {
               </div>
             ))}
           </dl>
+        </div>
+        <div className="rounded-xl border border-brand/40 bg-brand/10 p-3 text-xs" data-v2="welcome">
+          <p className="mb-1 text-xs font-semibold tracking-wide uppercase">What is new in version 2</p>
+          <p className="text-foreground/85">
+            Version 1 could only read what a member filed. Now members stake to sign, a carried spend waits in a short hold, and a page of a
+            public register the desk named in advance, read on the live web by every validator, can strike a signature that hid a relation
+            to the payee and pay the stake to whoever cited it, in one transaction. The practice desk&apos;s second track lets you do it alone.
+          </p>
+          <button
+            type="button"
+            className="mt-2 cursor-pointer text-primary underline-offset-4 hover:underline"
+            onClick={() => {
+              close();
+              writeItem(TRACK_KEY, "catch");
+              router.push("/practice?track=catch");
+            }}
+          >
+            Catch a hidden conflict on the practice desk
+          </button>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <InteractiveHoverButton

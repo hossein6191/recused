@@ -19,6 +19,7 @@ const HELP: Record<string, Help> = {
       "Committed is money already promised to spends that are still open.",
       "Free is what a new spend may ask for: the pot minus what is committed.",
       "The minimum notice is fixed for this desk: no spend may give members less time to say who a payee is.",
+      "Version 2: every member stakes to sign, a carried spend waits out a hold before it pays, and the desk names the public registers a challenge may cite.",
     ],
   },
   "desk-you": {
@@ -36,7 +37,7 @@ const HELP: Record<string, Help> = {
     what: "Every payment anyone has asked this desk to make, newest first.",
     steps: [
       "Each row is one spend: S1 was the first one posted, S2 the second.",
-      "Open means it is still waiting for countersignatures; Paid means two clear approvals carried it; Expired means its time ran out.",
+      "Open means it is still waiting for countersignatures; In its hold means two clear approvals carried it and it waits, open to challenge; Paid means it was released after the hold; Expired means its time ran out.",
       "Press a row to open the spend, read it, and countersign it if you may.",
       "To ask for a payment yourself, press Post a spend.",
     ],
@@ -58,6 +59,7 @@ const HELP: Record<string, Help> = {
       "Give it a name, or pick one of the suggestions.",
       "Leave the roster empty to let anyone enrol, or list the addresses that may join. It can never be changed.",
       "Choose the minimum notice every spend must give, and the first amount to put in.",
+      "Name 1 to 3 public registers, the stake every member puts up, and the hold every carried spend waits out. All fixed for good.",
       "Press Open and sign once. The new desk gets the next number.",
     ],
   },
@@ -67,7 +69,8 @@ const HELP: Record<string, Help> = {
     steps: [
       "Press an example to fill everything, then change what is not true of you.",
       "Write the statement, add at least one entry, and list any addresses that are yours.",
-      "Press File and sign once.",
+      "Give your public name: the name a register would list you under.",
+      "Press File and sign once. The call sends the desk's member stake, which stays yours.",
       "You can countersign spends that are posted after this moment, never earlier ones.",
     ],
   },
@@ -147,6 +150,7 @@ const HELP: Record<string, Help> = {
       "Press Countersign and sign once. It takes one to two minutes.",
       "The validators ask whether the payment changes your position if it is carried out, and if it is not.",
       "UU counts as an approval. A pair showing a gain or a loss means you are recused. You get one try per spend.",
+      "The second clear approval puts the spend in its hold. During it your stake answers for your signature; after it anyone may release the payment.",
     ],
   },
   "spend-readings": {
@@ -209,6 +213,56 @@ const HELP: Record<string, Help> = {
       "Open the desk to see the balance after the payment.",
       "Open the ledger to read both readings with no wallet.",
       "Start again to run it on a fresh desk.",
+    ],
+  },
+  "spend-challenge": {
+    title: "Cite a register page",
+    what: "While a spend is in its hold, anyone but the member challenged may cite a page of one of the desk's named registers against either counted signature.",
+    steps: [
+      "Pick the signature: one of the two counted, never your own.",
+      "Pick a page: press a suggestion, or paste an https address below one of the desk's registers.",
+      "Put up bond credit if you hold less than 0.05 GEN. It is yours and tied to no desk.",
+      "Press Challenge and sign once. Every validator fetches the page and reads it four times; one to three minutes.",
+      "Hidden: the signature is struck, the stake slashed, half paid to you at once. Clean: your bond goes to the member. Unclear: nothing moves.",
+    ],
+  },
+  "desk-register": {
+    title: "The desk's public registers",
+    what: "The address prefixes a challenge on this desk may cite, named when the desk was opened and never again.",
+    steps: [
+      "Open a prefix to see the register's pages.",
+      "A page below one of them can be cited against a counted signature while a spend is in its hold.",
+      "Whoever controls a prefix decides what its pages say, the opener included: judge the registers before you enrol.",
+    ],
+  },
+  "member-record": {
+    title: "The public record",
+    what: "What register pages found about this member, and what their stake answers for now.",
+    steps: [
+      "The public name is the one the member gave: the name a register would list them under.",
+      "Hidden conflicts proven counts signatures a register page struck; each cost the whole stake.",
+      "Challenges survived counts pages that named the member and showed nothing hidden; each paid them the challenger's bond.",
+      "No rule of the contract reads this record. It is there for the other members to judge.",
+    ],
+  },
+  "member-stake": {
+    title: "Your stake",
+    what: "What you put up to sign, and the three things only you may do with it.",
+    steps: [
+      "Restake: after a slash, top the stake up with exactly the amount missing, and you may countersign again.",
+      "Retire: stop countersigning on this desk, for good.",
+      "Withdraw stake: once retired, take it back as soon as no spend you signed is open or in its hold.",
+    ],
+  },
+  "practice-catch": {
+    title: "Catch a hidden conflict",
+    what: "The version 2 track: a member who hid a directorship of the payee, and the public register page that shows it.",
+    steps: [
+      "Press Set up. The page's accounts open a desk naming the register, enrol with stakes, post a spend and countersign it.",
+      "Mara Quist reads clear, because her disclosure only names her print shop. The spend goes into its hold.",
+      "Put up bond credit with your wallet: 0.1 GEN covers everything.",
+      "Cite the Gull Catering page against her signature. Every validator reads it; she is struck and half her stake is paid to you.",
+      "Before that, you may cite two other pages to see a clean finding and an unclear one.",
     ],
   },
   "deploy-register": {

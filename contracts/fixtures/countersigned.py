@@ -1,6 +1,6 @@
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 
-"""Countersigned: a deposit released only against a spend a desk actually carried.
+"""Countersigned: a deposit released only against a spend a desk actually paid.
 
 A second, independent contract that turns a Recused reading into money moving.
 It is deployed bound to one Recused address and reads that register through
@@ -11,14 +11,27 @@ A depositor binds four things they already know: the desk id on that register,
 the spend number, the payee address, and the digest of the judged document they
 read for themselves. `release(id)` then has exactly four outcomes:
 
-    the spend is still open            refused; nothing changes, call again later
+    the spend is still open, or in     refused; nothing changes, call again later
+    its hold
     the spend expired                  the deposit goes back to the depositor
     the spend was paid, but its payee  the deposit goes back to the depositor,
     or its document digest is not      with the reason stored
-    the one bound
+    the one bound, or its counted
+    readings are not two unstruck UU
     the spend was paid, the payee and  the deposit is paid to the bound payee
     the digest match, and both
-    counted approvals carry UU
+    counted approvals carry UU and
+    neither was struck
+
+Version 2 of the register pays a spend only when its hold has run out, and a
+register page can strike a counted signature during that hold, which sends the
+spend back to open. So a spend in its hold is not settled here, and a paid
+spend is paid against only when the register reports both counted readings as
+UU and not struck. A genuine Recused register never pays a spend whose counted
+reading is struck: a strike sends the spend back to open, and a signature struck
+on another spend of the same run is dropped before the spend can hold or be
+released. So the struck check is a guard against a register that misreports,
+not a case the real register produces; only a doctored register reaches it.
 
 A desk id is never authority on its own: ids are handed out in order, and
 whoever opens the next desk gets the next id. So the depositor names the register
@@ -60,12 +73,17 @@ DONE = (RELEASED, RETURNED, REFUSED, CANCELLED)
 
 CLEAR_VALUE = "UU"             # the one stored reading this contract will pay against
 SPEND_OPEN = "open"
+SPEND_HOLDING = "holding"      # two clear readings counted and the hold running: not settled yet
 SPEND_PAID = "paid"
 SPEND_EXPIRED = "expired"
+WAITING = (SPEND_OPEN, SPEND_HOLDING)
 
 MIN_AMOUNT = 1
-DEPOSITS_PAGE = 24             # terms() lists the most recent ids; every deposit is still read by its id
+DEPOSITS_PAGE = 20             # terms() lists the most recent ids; every deposit is still read by its id
 NOT_SHOWN = "(not shown)"      # printed in place of a text this contract will not repeat back
+PLAIN_MOST = 64                # the longest text this contract ever repeats back
+WHOLE_DIGITS = 40
+DESK_DIGITS = 9
 
 
 def _fail(message: str) -> typing.NoReturn:
@@ -78,12 +96,12 @@ def _low(address: typing.Any) -> str:
 
 def _is_address(text: str) -> bool:
     s = str(text).strip().lower()
-    return len(s) == 42 and s.startswith("0x") and all(ch in HEX for ch in s[2:]) and s != ZERO
+    return len(s) == 42 and s.startswith("0x") and all(ch in HEX for ch in s[2:42]) and s != ZERO
 
 
 def _is_digest(text: str) -> bool:
     s = str(text).strip().lower()
-    return len(s) == 64 and all(ch in HEX for ch in s)
+    return len(s) == 64 and all(ch in HEX for ch in s[:64])
 
 
 def _is_desk_id(text: str) -> bool:
@@ -96,12 +114,12 @@ def _is_desk_id(text: str) -> bool:
     s = str(text).strip()
     digits = s[1:]
     return (len(s) >= 2 and len(digits) <= 9 and s[0] == "D" and digits[0] != "0"
-            and all(ch in "0123456789" for ch in digits))
+            and all(ch in "0123456789" for ch in digits[:DESK_DIGITS]))
 
 
 def _whole(raw: typing.Any) -> int:
     s = str(raw).strip()
-    if not s or len(s) > 40 or not all(ch in "0123456789" for ch in s):
+    if not s or len(s) > WHOLE_DIGITS or not all(ch in "0123456789" for ch in s[:WHOLE_DIGITS]):
         return -1
     return int(s)
 
@@ -114,7 +132,7 @@ def _plain(raw: typing.Any, most: int) -> str:
     back only when it is that plain.
     """
     s = str(raw)
-    if 0 < len(s) <= most and all(32 <= ord(ch) <= 126 and ch not in '<>"' for ch in s):
+    if 0 < len(s) <= min(most, PLAIN_MOST) and all(32 <= ord(ch) <= 126 and ch not in '<>"' for ch in s[:PLAIN_MOST]):
         return s
     return NOT_SHOWN
 
@@ -203,9 +221,9 @@ class Countersigned(gl.Contract):
         state = str(seen.get("state", ""))
         if state == "":
             _fail("the register has no " + str(row["desk"]) + " " + str(row["spend"]) + "; the depositor may cancel")
-        if state == SPEND_OPEN:
-            _fail(str(row["spend"]) + " on " + str(row["desk"]) + " is still open; nothing is settled before the "
-                  "desk carries it or its window ends")
+        if state in WAITING:
+            _fail(str(row["spend"]) + " on " + str(row["desk"]) + " is " + state + "; nothing is settled before the "
+                  "desk pays it or its window ends, so call again later")
         amount = int(row["amount"])
         if state == SPEND_EXPIRED:
             return self._close(row_id, row, RETURNED, row["by"], amount,
@@ -227,6 +245,11 @@ class Countersigned(gl.Contract):
                                + " countersignatures")
         one = str(seen.get("approver1_value", ""))
         two = str(seen.get("approver2_value", ""))
+        if seen.get("approver1_struck") is not False or seen.get("approver2_struck") is not False:
+            return self._close(row_id, row, REFUSED, row["by"], amount,
+                               "the register does not report both counted readings of " + str(row["spend"])
+                               + " as standing unstruck, and this contract pays only against readings no register "
+                               "page struck")
         if one != CLEAR_VALUE or two != CLEAR_VALUE:
             return self._close(row_id, row, REFUSED, row["by"], amount,
                                "the two counted readings are " + _plain(one, 4) + " and " + _plain(two, 4)
@@ -240,8 +263,9 @@ class Countersigned(gl.Contract):
 
         The sender check is the whole authority rule: the sender must be the
         address written on the row as its depositor, and the money goes back to
-        that address. A spend that exists always ends, because its window has a
-        deadline anybody may act on, so a deposit on one waits for `release`.
+        that address. A spend that exists always ends, because its window and its
+        hold each have a deadline anybody may act on, so a deposit on one waits
+        for `release`.
         """
         row_id = str(deposit_id).strip()
         if row_id not in self.rows:
@@ -271,11 +295,12 @@ class Countersigned(gl.Contract):
         start = max(1, total - DEPOSITS_PAGE + 1)
         return json.dumps({
             "register": _low(self.register), "deposits": total, "first": start,
-            "ids": [str(k) for k in range(start, total + 1)],
+            "ids": [str(k) for k in range(start, min(total, start + DEPOSITS_PAGE - 1) + 1)],
             "pays_against": "a spend of the bound register that is paid, whose payee and judged-document digest "
                             "are the ones the deposit was bound to, and whose two counted readings are both "
-                            + CLEAR_VALUE,
-            "outcomes": {SPEND_OPEN: "refused, nothing changes", SPEND_EXPIRED: RETURNED,
+                            + CLEAR_VALUE + " and neither struck by a register page",
+            "outcomes": {SPEND_OPEN: "refused, nothing changes", SPEND_HOLDING: "refused, nothing changes",
+                         SPEND_EXPIRED: RETURNED,
                          "paid but not the one bound": REFUSED, "paid and bound": RELEASED},
             "binding": "a desk id is not authority on its own, because ids are handed out in order; the register "
                        "address is bound at deployment and the payee and the document digest at deposit",

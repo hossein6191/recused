@@ -5,7 +5,7 @@
 // from its closed phrases. Nothing a model wrote is stored, so nothing a model wrote is shown.
 
 import * as React from "react";
-import { CheckCircle2, CircleSlash, Clock, HelpCircle, History, ShieldOff } from "lucide-react";
+import { CheckCircle2, CircleSlash, Clock, HelpCircle, History, ShieldAlert, ShieldOff } from "lucide-react";
 
 import { Address } from "@/components/address";
 import type { Phase, Reading, Verdict } from "@/lib/chain";
@@ -75,19 +75,34 @@ export function TokenPair({ value, className }: { value: string; className?: str
   );
 }
 
-/** One reading in full. `mine` marks the visitor's own. */
+/** One reading in full. `mine` marks the visitor's own. A reading a register page struck is shown struck through. */
 export function ReadingCard({ reading, mine, className }: { reading: Reading; mine?: boolean; className?: string }) {
   return (
-    <div className={cn("space-y-3 rounded-xl border bg-card p-4 text-sm", mine && "ring-1 ring-primary/50", className)}>
+    <div data-struck={reading.struck ? "yes" : undefined} className={cn("space-y-3 rounded-xl border bg-card p-4 text-sm", mine && "ring-1 ring-primary/50", reading.struck && "border-breaks/40", className)}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="font-semibold">{reading.number || "Member"}</span>
+          <span className={cn("font-semibold", reading.struck && "line-through decoration-breaks decoration-2")}>{reading.number || "Member"}</span>
           <Address value={reading.member} className="text-xs" />
           {mine ? <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] text-primary">you</span> : null}
         </div>
-        <VerdictBadge verdict={reading.verdict} />
+        <div className="flex flex-wrap items-center gap-1.5">
+          {reading.struck ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-breaks/50 bg-breaks/10 px-2 py-0.5 text-xs font-medium text-breaks">
+              <ShieldAlert className="size-3 shrink-0" /> Struck
+            </span>
+          ) : null}
+          <span className={cn(reading.struck && "line-through decoration-breaks decoration-2 opacity-70")}>
+            <VerdictBadge verdict={reading.verdict} />
+          </span>
+        </div>
       </div>
-      <TokenPair value={reading.value} />
+      {reading.struck ? (
+        <p className="rounded-lg border border-breaks/40 bg-breaks/10 p-2 text-xs text-foreground/90">
+          This countersignature no longer counts: it was struck by {reading.struckBy.startsWith("challenge") ? `${reading.struckBy}, a register page that showed a relation to the payee this member's disclosure left out` : reading.struckBy}
+          {reading.struckAt ? `, ${when(reading.struckAt)}` : ""}. The reading is kept for the record and stands for the rest of the run.
+        </p>
+      ) : null}
+      <TokenPair value={reading.value} className={cn(reading.struck && "line-through decoration-breaks opacity-70")} />
       {reading.why ? (
         <blockquote className="border-l-2 border-primary/50 pl-3 text-foreground/90">{reading.why}</blockquote>
       ) : null}
@@ -108,6 +123,8 @@ const PHASE_STYLE: Record<Phase, string> = {
   notice: "border-primary/40 bg-primary/10 text-primary",
   approvals: "border-keeps/40 bg-keeps/10 text-keeps",
   overdue: "border-gold/40 bg-gold/10 text-gold",
+  holding: "border-primary/50 bg-primary/15 text-primary",
+  releasable: "border-keeps/50 bg-keeps/10 text-keeps",
   paid: "border-keeps/40 bg-keeps/15 text-keeps",
   expired: "border-border bg-muted text-muted-foreground",
 };

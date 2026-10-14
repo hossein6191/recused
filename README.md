@@ -4,31 +4,235 @@ A shared fund where a spend needs two countersignatures, and the contract
 refuses a countersignature when the interests the signer filed **before the
 spend existed** are moved by it, in either direction, whether the spend goes
 through or not. Its limits belong here, before anything else. The contract reads
-what a member filed and cannot know what they hid: a member who leaves something
-out in good faith reads clear, and so does one who files a false statement in
-bad faith. A desk with open enrolment is not safe for money that matters,
-because three addresses one person controls can post a spend and carry it; a
-desk holding real money names its members when it is opened. A member who
-discloses broadly and honestly will be recused often. A sentence saying who a
-payee is, is a member's signed claim and may be false, and a false one can
-recuse an honest member for as long as that payee address goes unpaid. "Before"
-is kept per payee address, and the fund cannot know that two addresses are one
-payee. What the contract means by "clear" is exactly three things and no more:
-not the poster, not paid at an address that is the signer's own or that they
-declared, and not moved under either branch as read against what they filed
-first.
+what a member filed. Version 1 could not know what a member hid; version 2
+catches one kind of hiding, a relation to the payee that a public register shows:
+members stake to sign, a carried spend waits in a short hold before it pays, and
+during the hold anyone may cite a page of a register the desk named in advance,
+which every validator reads on the live web. What it still cannot catch is a
+relation that no register the desk named shows, or a member that register lists
+under a name other than the public name they gave (a page that does not name the
+member reads unclear, so such a member also collects no bonds): such a member reads clear, and
+so does one who leaves something out in good faith, and so does one who files a
+false statement that no named register contradicts. A desk with open enrolment
+is not safe for money that matters, because three addresses one person controls
+can post a spend and carry it; a desk holding real money names its members when
+it is opened. A member who discloses broadly and honestly will be recused often.
+A sentence saying who a payee is, is a member's signed claim and may be false,
+and a false one can recuse an honest member for as long as that payee address
+goes unpaid. "Before" is kept per payee address, and the fund cannot know that
+two addresses are one payee. What the contract means by "clear" is exactly three
+things and no more: not the poster, not paid at an address that is the signer's
+own or that they declared, and not moved under either branch as read against
+what they filed first.
+
+## Version 2: what a member hid, a public register can prove
+
+Members stake to sign, a carried spend waits in a short hold before it pays, and
+during the hold anyone may cite a page from a public register the desk named in
+advance. Validators read that page on the live web, and if it shows a relation
+to the payee the member never disclosed, the signature is struck, the payment
+stops and the member's stake pays the whistleblower, all in the same transaction.
+
+Version 1 opened this README by admitting that the contract reads what a member
+filed and cannot know what they hid. Version 2 answers that first stated limit
+with the one thing only GenLayer can do here: several validators each fetch the
+same public page themselves, read it against the member's own disclosure, and
+the contract acts only on what they agree it says. No deterministic contract can
+read a web page, an oracle that reads it for the contract is one party's word,
+and a single model's reading of it is one reader's accusation. Here the page is
+fetched by every validator, fingerprinted by every validator, and judged by
+every validator in two framings and two presentation orders, and the finding
+and the fingerprint must match exactly or nothing is stored.
+
+### What changed in the contract
+
+- **`open_desk`** takes three more terms, fixed for good when the desk is opened:
+  1 to 3 **registers** (https address prefixes, each at most 120 characters,
+  named before any spend exists, so that a challenger cannot cite a page of their
+  own choosing; whoever controls a named prefix, the opener included, controls
+  what it serves, which is why `desk()` publishes them before anyone enrols), the
+  **member stake** (0.1 to 100 GEN) and the **hold** (5 minutes to 7 days).
+- **`enrol`** is payable and takes a **public name**, the name public registers
+  would list the member under. It takes exactly the desk's stake, holds it for
+  that member, and refunds the value with `{"ok": false}` on every refusal; it
+  never raises after taking value. **`restake`** tops a slashed stake back up
+  with exactly the amount missing. A member whose stake is not whole, or who has
+  **retired**, is refused before any model is asked, and the attempt is not
+  spent. **`retire`** stops a member countersigning; **`withdraw_stake`** returns
+  a retired member's stake once no spend it signed is open or in its hold.
+- **`approve`** reads exactly as in version 1. The change is what the second
+  clear reading does: it pays nothing, latches the spend **holding** until
+  `hold_until`, keeps its amount committed and counts the hold against both
+  signers. A spend in its hold never expires.
+- **`release(desk, spend)`**, open to anyone once the hold has ended, pays the
+  payee exactly as the second clear reading did in version 1. A signature struck
+  stands struck for the rest of its run, so if either counted member was struck
+  on another spend to the same payee address in the meantime, `release` drops
+  that signature instead (no second slash), the spend goes back to open and
+  nothing is paid; the second clear reading makes the same check before it
+  starts a hold.
+- **`challenge(desk, spend, member_no, url)`**, open to anyone but the member
+  challenged, while the spend is in its hold, against either counted signature.
+  Every rule is checked before any page is fetched: the address must be https,
+  at most 200 characters, and below one of the desk's registers, and the same
+  page is read once against each signature. The challenger stakes a bond of 0.05
+  GEN from bond credit (**`deposit`**, **`withdraw`**). Then one consensus block:
+  every validator fetches the page (an error status or a failed fetch is a failed
+  read that stores nothing and takes no bond), cuts the text to 32,000
+  characters, collapses its spacing, keeps 8,000, takes the first 16 hex
+  characters of its sha256, and asks two questions in two orders over the spend
+  document the readings sealed, the member's disclosure as it stood when they
+  countersigned, their public name, and the page, every one of them fenced and
+  every block tagged with the start of its own sha256. The stored and compared
+  value is `{"verdict": "hidden" | "clean" | "unclear", "fp": <16 hex>}`. After
+  the round the fingerprint is checked too: a page text already read against
+  that signature on that spend, reached through another address that serves the
+  same text, is recorded as a **repeat** and settles nothing, so an unclear
+  finding cannot be asked again through an alias until it comes back hidden.
+- **Views**: `member` gains `public_name`, `stake`, `holds_open`, `hidden`,
+  `cleared` and `retired`; `spend` gains `holding`, `hold_until`, the struck
+  readings and the challenge count; `desk` gains the registers, the stake and the
+  hold; `challenges_of(desk, spend, offset, limit)` pages the challenges twenty at
+  a time; `bond_credit_of(addr)` and `stats()` are new; `rule()` carries the two
+  questions word for word, the combine rule, the money table and the limits.
+- **The Countersigned fixture** pays only on a spend the register reports paid
+  with two counted `UU` readings; a spend open or in its hold is "call again
+  later". It also refuses a paid spend whose counted reading the register reports
+  as struck, or does not report on at all. The real register never produces that
+  row (a strike reopens the spend, and a signature struck elsewhere in the run is
+  dropped before the spend can hold or pay), so this is a guard against a
+  register that misreports, and only a doctored register in the tests reaches it.
+
+The two questions, each asked with the page first and with the documents first:
+
+> **SHOWS** Does this page show that the person named {public_name} has a relation to the payee as the spend
+> document describes it (owns, runs, directs, works for or is paid by it, or is close family of someone who does)
+> that the member's filed disclosure does not mention? Answer yes, no or unclear.
+>
+> **SILENT** Does this page give the name of the person named {public_name}, and is it either silent about any
+> relation between that person and that payee, or is every relation it shows between them one the member's filed
+> disclosure already mentions? If the page does not give that name at all, answer no. Answer yes, no or unclear.
+
+**hidden** only when SHOWS is yes in both orders and SILENT is no in both;
+**clean** only when SHOWS is no in both and SILENT is yes in both; anything else,
+an unreadable answer included, is **unclear**. SILENT is yes only for a page
+that names the member, so **clean** means the page named the member and showed
+nothing about the payee that their disclosure left out. A page that does not
+name the member at all reads unclear and returns the bond: a member who enrols
+under a name the registers do not use is not caught, but cannot turn accurate
+challenges into bonds either.
+
+| finding | the signature | the spend | the member's stake | the challenger's bond | the public record |
+|---|---|---|---|---|---|
+| hidden | struck, kept for the record, and standing refused for the rest of the run | its hold ends; back to open needing one more clear reading, or expired as version 1 would if its window has passed | slashed whole: half paid to the challenger in that transaction, half into the desk's pot | stays in the challenger's credit | `hidden` + 1 |
+| clean | counted | still in its hold | untouched | paid to the member in that transaction: the page named the member and showed nothing they hid about the payee, so the accusation was wrong | `cleared` + 1 |
+| unclear | counted | still in its hold | untouched | stays in the challenger's credit | nothing |
+| repeat | counted | still in its hold | untouched | stays in the challenger's credit; the page text was already read against this signature | nothing |
+
+When no funder holds credit in the desk at the moment of a hidden finding, the
+desk's half would sit in a pot no unit stands for, and the next funder would take
+it whole with a single atto; so in that case the whole stake goes to the
+challenger.
+
+### What changed on the site
+
+The practice desk gains a second track, **catch a hidden conflict**, played on
+the demonstration register in `registry/`: Mara Quist, a practice member who is
+a director of the payee and never said so, reads clear, the spend goes into its
+hold, and the visitor, with their own wallet, puts up bond credit and cites the
+register's Gull Catering page against her signature. Every validator reads it,
+the signature is struck and half her stake is paid to the visitor, in one
+transaction. Before that the visitor may cite a page that names her only for the
+print shop she filed (clean, the bond goes to her) and one that never names the
+other signer (unclear, nothing moves). The spend page shows the hold, its
+countdown, a panel to cite a page against either counted signature, every
+challenge with its finding, page, fingerprint and money, struck readings struck
+through, and a release button that anyone may press when the hold ends. Every
+member has a page of their own with their public name, stake and public record,
+where they restake, retire and take the stake back. The track waits for one
+setting, `REGISTRY_COMMIT` in `web/lib/config.ts`, and says so until it is set;
+"The site" below has the details.
+
+### What changed in the evidence
+
+- `registry/`: a fictional public companies register, the **Estuary Companies
+  Register**, one plain-text page per company. `gull-catering-ltd.html` lists
+  "Mara Quist, director, appointed 4 March 2019" for a caterer, a business no
+  member's disclosure competes with; `heron-signs-ltd.html` lists nobody from
+  the demonstration desk; `pelican-press-ltd.html` lists Mara Quist and her
+  sister as the owners of the print shop of the version 1 story; and
+  `osprey-paper-ltd-former-officers.html`, plainly labelled, shows a relation
+  that ended in 2018. What each page reads as depends on the spend it is cited
+  against; `registry/README.md` gives the table.
+- `tests/on_chain/smoke.mjs` is rewritten for version 2: the register pages are
+  read from `raw.githubusercontent.com` pinned to one commit, a wrong stake is
+  refunded in the same transaction, a page that names a member only for what
+  they disclosed is clean and pays its bond to the member, the caterer's page
+  strikes the director who hid it and pays the whistleblower 0.25 GEN in the
+  same transaction, the spend is carried by another member, a page that does not
+  name the member cited against it is unclear and costs nothing, the spend is
+  released, and every account ends where the money table says. The desk's hold
+  is 45 minutes, and the script reads the spend before each challenge and sends
+  none with less than five minutes of the hold left.
+- The offline suite has 349 tests (298 in version 1), among them seeded random
+  journeys through every write that check after every step that no atto is made
+  or lost, and `tests/MUTATIONS.md` removes 389 defences in turn (282 in version
+  1), each killed by a named test.
+
+### The new limits, stated plainly
+
+1. **Only the desk's named registers count, and only a relation one of them
+   shows.** A relation that no named register prints is not caught, however
+   real. The opener names the registers; a member who enrols accepts them, and
+   `desk()` publishes them before anyone does (see 10).
+2. **A name on a register page is the register's claim, matched against the
+   public name the member gave.** The fund checks no identity. Two people can
+   share a name, and a member who gives a public name the registers do not use
+   cannot be matched; the public name is printed on the member's record for the
+   other members to judge. Such a member is not caught, but cannot profit from
+   it either: a page that does not give the member's public name reads unclear,
+   so the challenger's bond goes back instead of to the member.
+3. **The page must read the same for every validator at that moment.** A page
+   that changes between fetches, answers some validators and not others, or
+   rotates what it shows gets no agreement on its fingerprint, and nothing is
+   stored. The demonstration register is pinned to a commit for that reason.
+4. **Text pages only.** What an image, a PDF or a script would show is not read.
+5. **A former relation is not a present one.** A page that shows only a relation
+   that ended reads unclear by design, and the bond goes back.
+6. **Every payment waits for the hold**, from 5 minutes to 7 days, and a struck
+   spend needs another clear reading inside its window or it expires.
+7. **A clean finding costs the challenger the bond; an unclear one costs
+   nothing.** There is no cap on challenges, so none that a stranger could use
+   up: each page address is read once against each signature, a page text
+   already read against it under another address settles nothing, and a wrong
+   accusation, one whose page names the member and shows nothing they hid, pays
+   the member. A page whose text changes between readings is a new page.
+8. **A stake is slashed whole, once.** A member struck on one spend whose
+   signature is still counted on another spend to the same payee address in the
+   same run is not slashed again: that signature stops counting when the other
+   spend would next start a hold or be released, and that spend goes back to
+   open. It is never paid on a struck signature.
+9. **The desk's half of a slashed stake** raises the share of the funders in the
+   desk when it arrives. If no funder holds credit then, there is nobody for it
+   to belong to, so the challenger is paid the whole stake instead.
+10. **The registers are the opener's choice.** Naming them in advance stops a
+    challenger from citing a page they host; it does not stop the opener, or
+    anyone who can publish under a named prefix, from deciding what those pages
+    say. A desk whose registers its opener controls is a desk not to join.
 
 ## How it works
 
 A **desk** holds money. Anyone opens one, names its roster once (or leaves it
-empty for open enrolment), fixes the least notice a spend on it must give, and
-funds it.
+empty for open enrolment), fixes the least notice a spend on it must give, the
+public registers a challenge may cite, the stake each member puts up and the
+length of the hold, and funds it.
 
 A **member** enrols by filing a disclosure of their own interests: a statement
 in their own words, one to six **entries** (a named counterparty or activity,
 and the member's relation to it from a closed list of fifteen), and any
-**addresses** they declare as their own. The contract stamps the disclosure with
-the next number of its own event counter.
+**addresses** they declare as their own, with a **public name** and exactly the
+desk's **stake**. The contract stamps the disclosure with the next number of its
+own event counter.
 
 A member **posts a spend**: a payee address, an amount and a description. The
 spend takes the next number of the same counter. The spends posted to one payee
@@ -85,10 +289,17 @@ other branch came back as. Anything else, such as `?U` or `/U`, is **unclear**.
 **What follows from the value, in the same transaction.** A reading that is not
 clear is refused and stored with its two characters; the attempt is spent, the
 verdict is final, and it stands for the rest of the run. The first clear reading
-is counted. The second clear reading latches the spend paid, moves the amount
-from the desk to the payee in that same transaction, and ends the run. A spend
-that does not find two clear readings before its window ends is expired by
-anyone, and its amount stops being committed. The bar is never lowered to one.
+is counted. The second clear reading puts the spend in its **hold**: nothing is
+paid and the amount stays committed. Until the hold ends anyone may cite a page
+of one of the desk's registers against either counted signature, and a page that
+every validator reads as showing a relation the member never disclosed strikes
+that signature, slashes the member's stake and sends the spend back to open; the
+struck member's signature also stops counting on any other spend of the same
+run, when that spend would next start a hold or be released.
+When the hold ends anyone may **release** the spend, which moves the amount from
+the desk to the payee in that transaction and ends the run. A spend that does
+not find two clear readings before its window ends is expired by anyone, and its
+amount stops being committed. The bar is never lowered to one.
 
 ### Three things the contract does so that prose cannot get round it
 
@@ -129,13 +340,31 @@ reader's answer is one party's opinion about another party's conflict. On
 GenLayer several validators each make the reading themselves and the contract
 stores it only when they reach the same two characters. Everything around that
 reading (the money, the sequence numbers, the windows, the single attempt, the
-three refusals that ask no model) is ordinary deterministic contract code, in
-the same transaction as the reading, so the verdict and its consequence cannot
-come apart.
+three refusals that ask no model) is ordinary deterministic contract code. In
+version 1 the payment was made in the same transaction as the second clear
+reading. In version 2 that transaction latches the spend in its hold, with its
+amount committed and its two signatures recorded, and the payment waits for
+`release` after the hold: what the reading decided cannot be undone by anyone
+but a register page the validators agree on, and nothing is paid that the hold
+did not first leave open to challenge.
+
+Version 2 adds the second thing only GenLayer can do: read the live web under
+consensus. Whether a register page shows that the person named Mara Quist
+directs the payee, when her disclosure never mentions it, is a reading of a page
+nobody controls against a text the member wrote. Every validator fetches the
+page itself and reaches the finding itself, and the contract strikes a
+signature and moves a stake only when they agree on both the finding and the
+fingerprint of what they read.
 
 ## How consensus is used
 
-One `gl.vm.run_nondet_unsafe(leader_fn, validator_fn)` per countersignature.
+One `gl.vm.run_nondet_unsafe(leader_fn, validator_fn)` per countersignature, and
+in version 2 one per challenge. The register round is described in the version 2
+section above: one block, the page fetched by every node with its status read
+first, two framings in two orders, `{"verdict", "fp"}` compared by exact
+equality, and a leader whose fetch or model call failed never agreed with, so a
+failed read stores nothing and takes no bond. What follows is the reading round
+of a countersignature, unchanged from version 1.
 
 - **Both framings in one block.** `leader_fn` asks the model twice. The two
   prompts carry the same instruction text and the same lines. In the first, the
@@ -175,32 +404,45 @@ One `gl.vm.run_nondet_unsafe(leader_fn, validator_fn)` per countersignature.
 - **The members of a fund**, to post spends and to countersign them.
 - **Funders**, who put money into a desk and can take their share of whatever is
   not committed back out.
+- **Anyone who can cite a register page**, member or stranger, while a spend is
+  in its hold, with 0.05 GEN of bond credit; and anyone at all to release a spend
+  whose hold has ended.
 - **Other contracts**, which read `spend(desk, n)` and `reading(desk, n, addr)`
   through an ordinary view. `contracts/fixtures/countersigned.py` is one: a
-  deposit that is released to a payee only against a spend the desk carried with
-  two clear readings, bound at deposit to the payee address and to the digest of
-  the judged document, and returned to the depositor otherwise.
+  deposit that is released to a payee only against a spend the desk paid on two
+  clear readings that no register page struck, bound at deposit to the payee
+  address and to the digest of the judged document, and returned to the
+  depositor otherwise.
 
 ## Who may do what
 
 There is no operator and no privileged address. Every write checks its sender,
-and the three that are open to anyone are listed with their reasons in a test.
+and the five that are open to anyone are listed with their reasons in a test.
 
 | write | who may call it | the check |
 |---|---|---|
 | `open_desk` | anyone | open by design: the sender becomes the opener and a funder, names the roster and the desk's minimum notice once, and gets back whatever they sent on any refusal |
 | `fund` | anyone | open by design: the credit is written under the sender's own address and `reclaim` pays that address only |
-| `enrol` | an address on the roster, or anyone on an open desk | the row is keyed by the sender; one per address per desk |
+| `enrol` | an address on the roster, or anyone on an open desk, with exactly the desk's stake | the row is keyed by the sender; one per address per desk; every refusal returns the value |
+| `restake` | the member | only the sender's own stake is topped up, with exactly what it is missing; every refusal returns the value |
+| `retire` | the member | only the row keyed by the sender is marked, for good |
+| `withdraw_stake` | a retired member | the stake paid is the sender's own, to the sender, once no spend it signed is open or in its hold |
 | `amend` | the member | only the row keyed by the sender is rewritten |
 | `post_spend` | a member of the desk | the sender must hold a disclosure on that desk and fewer than two open spends of their own; the payee may not be the sender |
 | `identify` | a member, not the spend's poster, whose disclosure predates the gate | the sender's own row is read for its number; the poster is refused; one sentence per member per spend |
 | `approve` | a member of the desk, not the spend's poster, once | sender enrolled, sender not the poster, no earlier reading by the sender on this spend, sender's own address not the payee, no reading of the sender's standing in this run |
 | `expire` | anyone, after the window | open by design: the caller chooses nothing and no money leaves the desk |
 | `reclaim` | a funder | the credit and the claims read, and the address paid, are the sender's own |
+| `release` | anyone, after the hold | open by design: the payee and the amount were fixed at posting and the hold ran its length open to challenge |
+| `deposit` | anyone | open by design: the bond credit is written under the sender's own address |
+| `withdraw` | anyone with bond credit | the credit read and the address paid are the sender's own |
+| `challenge` | anyone but the member challenged, while the spend is in its hold | the sender may not be the member; the bond is the sender's own credit |
 
 Nobody is stuck. A recused member goes forward: they may amend, countersign
 spends to other payees, and post the very payment they were recused on, which
-two other members then carry. A poster whose spend stalls waits for the window
+two other members then carry. A member whose signature was struck restakes, or
+retires and takes back what is left. A challenger takes back its credit. A spend
+in its hold is released by anyone when the hold ends. A poster whose spend stalls waits for the window
 and expires it, or anyone else does. A funder takes their share of the free
 balance at any time; what their credit stood for in an open spend comes back to
 them if the spend expires, and is their part of the payment if it is paid. A
@@ -210,8 +452,10 @@ does nothing.
 ## The limits, in full
 
 1. **A disclosure is self-declared.** The contract cannot check it against the
-   world. What it enforces is that the disclosure was on file first, that it
-   names at least one thing, and that the reading is made against it as filed.
+   world, except where a register the desk named shows a relation it leaves out
+   (version 2, with its own limits above). What it enforces is that the
+   disclosure was on file first, that it names at least one thing, and that the
+   reading is made against it as filed.
 2. **Who the payee is, is only what members wrote.** A poster who does not name
    the payee, on a desk where nobody else knows the address, defeats the
    reading. The repair is in the other members' hands during the notice window,
@@ -236,7 +480,7 @@ does nothing.
    costs still apply (the poster is excluded, two others are needed, each must
    have enrolled before the payee was first posted, and there is a notice
    window), but they do not stop one person with three addresses. One person
-   can also take all 24 member places of an open desk, and with four addresses
+   can also take all 20 member places of an open desk, and with four addresses
    all eight places for open spends.
 5. **One attempt is one attempt, and a reading that is not clear stands.** An
    unstable or unreadable round spends the attempt, and so does agreed
@@ -269,8 +513,9 @@ does nothing.
     stood for in each open spend becomes a claim on that spend alone: void if
     the spend is paid, owed back if it expires. So leaving early neither escapes
     a payment nor moves any part of it onto the funders who stay, but what is
-    committed is released only when the spend is carried or expires, and nobody
-    can cancel a spend, its poster included. A member may hold two open spends
+    committed is released only when the spend is paid or expires, a spend in its
+    hold stays committed until it is released, and nobody can cancel a spend,
+    its poster included. A member may hold two open spends
     and a desk eight, and members who keep the whole free balance committed
     delay every funder for as long as they keep posting. Money that arrives
     while a spend is open bears its share of that spend like any other credit
@@ -290,7 +535,7 @@ does nothing.
     last atto each time takes 27. The funders can still reclaim, and a new desk
     needs nobody's permission.
 13. **`desks()` is a page, not a directory.** Opening a desk is free, so the
-    view shows the 24 most recent and a stranger can push any desk off it.
+    view shows the 20 most recent and a stranger can push any desk off it.
     `desks_from(n)` lists from any number, and every desk is read by its id.
 14. **A member who names a claim on the fund itself is read unevenly.** A
     disclosure that says "my group asks this fund for money" is close to every
@@ -323,7 +568,9 @@ does nothing.
 | `tests/test_pure.py` | the offline suite: a stub runtime and a simulated network with one scripted model per node |
 | `tools/mutate.py` | removes each defence in turn and records the test that failed |
 | `tests/MUTATIONS.md` | the table that tool writes; it refuses to write it if any mutant survives |
-| `tests/on_chain/smoke.mjs` | the run against GenLayer Studio, with throwaway accounts |
+| `tests/on_chain/smoke.mjs` | the version 2 run against GenLayer Studio, with throwaway accounts and the register read at one commit |
+| `tests/on_chain.md` | every step of the version 1 run, with its transaction and tally |
+| `registry/` | the Estuary Companies Register, a fictional public register whose pages the version 2 run cites |
 | `docs/DESIGN.md` | the specification the contract was built to, with its corrections |
 | `DECISIONS.md` | each choice, its reason and its cost, and what was measured |
 | `CONTRACTS.md` | the method by method reference |
@@ -345,45 +592,86 @@ So a newcomer who has just enrolled can countersign nothing that already exists,
 and alone would only ever meet the refusal for a late disclosure. The **practice
 desk** answers that without an operator: the page makes practice accounts in the
 visitor's own browser, funds them from the test faucet, and has them play the
-other members of a new desk. The visitor enrols with their own wallet, a
-practice member posts a spend after that, the visitor countersigns it and is
-read by a real consensus round, and a second practice member's clear reading
-pays the payee in that transaction. One more click shows the contrast: a spend
-to the print shop, countersigned by the member who part owns it, refused.
-Every one of those steps is a transaction on GenLayer Studio, and the page says
-plainly which accounts are its own.
+other members of a new desk, and it says plainly which accounts are its own. It
+has two tracks, and every step of both is a transaction on GenLayer Studio.
+
+**Be read and paid.** The visitor enrols with their own wallet, under a public
+name and with the desk's stake of 0.1 GEN, a practice member posts a spend after
+that, the visitor countersigns it and is read by a real consensus round, a
+second practice member's clear reading puts the spend in its five-minute hold,
+and when the hold ends a practice member releases it and the payee is paid. One
+more click shows the contrast: a spend to the print shop, countersigned by the
+member who part owns it, refused. The visitor takes the stake back from their
+member page once the spend they signed has ended.
+
+**Catch a hidden conflict** (version 2). Four practice accounts open a desk whose
+one register is `registry/` on `raw.githubusercontent.com` at the commit set as
+`REGISTRY_COMMIT` in `web/lib/config.ts`, each enrol with a stake of 1 GEN, and
+post 0.4 GEN of refreshments from Gull Catering Ltd. Mara Quist and Tomas Brandt
+read clear and the spend goes into a 30-minute hold. The visitor, with their own
+wallet, deposits bond credit and cites the Gull Catering page against Mara's
+signature: every validator fetches it, finds the directorship her disclosure
+left out, strikes the signature and pays the visitor 0.5 GEN of her stake in that
+transaction, and the page watches the visitor's balance until it arrives. A
+desk names its registers for good when it is opened, so the track will not open
+a desk on a branch that could change: until `REGISTRY_COMMIT` holds the commit
+`registry/` was pushed in, the track says why it cannot start. Demo mode runs it
+on the in-memory contract, where the page is served from a copy of `registry/`
+and judged by a fixed rule, and the demo bar says so.
+
+Version 2 shows on every page: the desk page lists the desk's registers as
+links, its stake and its hold, and each member's public name, stake and record;
+opening a desk takes the registers, the stake and the hold, each with
+suggestions; enrolling takes the public name and sends the stake; every waiting
+moment (a hold, a challenge with the validators, a struck signature, a release,
+a stake to restake, a retired member) says what is happening, how long it takes,
+whether anything is needed, whether the visitor can leave, and where the money
+is. A register still running version 1 is read as such, and the pages say that
+its version 2 calls need a version 2 register.
 
 ```
 cd web
 npm ci
-NEXT_PUBLIC_MOCK=1 ./node_modules/.bin/next dev -p 3127   # in-memory data, no wallet needed
+NEXT_PUBLIC_MOCK=1 ./node_modules/.bin/next dev -p 3117                # in-memory data, no wallet needed
+node --import ./tests/unit/ts-resolve.mjs --test tests/unit/*.test.mjs  # the site's unit tests, no network
+node tests/site/practice.mjs && node tests/site/catch.mjs              # both tracks in headless Chrome, against :3117
 ./node_modules/.bin/next build .
 ```
+
+The unit tests check every call and view against `contracts/recused.py`, walk the
+in-memory contract through every version 2 path, run seeded random journeys that
+count every atto after every step, and check the waiting copy for every state and
+role, the suggestions against the contract's limits, both practice tracks' order,
+and that nothing personal is in the site's files.
 
 ## Running it
 
 ```
 pip install -r requirements-dev.txt
-python -m pytest tests/ -q -p no:cacheprovider      # 298 tests, no network
+python -m pytest tests/ -q -p no:cacheprovider      # 349 tests, no network
 genvm-lint check contracts/recused.py               # read the first line and the exit code
 genvm-lint check contracts/fixtures/countersigned.py
-python tools/mutate.py                              # 282 defences, exit 1 on a survivor
+python tools/mutate.py                              # 389 defences, exit 1 on a survivor
 ```
 
 The on-chain run needs Node:
 
 ```
 npm ci
-PHASE=P node tests/on_chain/smoke.mjs      # the probe: one spend and three readings, about a quarter of an hour
-node tests/on_chain/smoke.mjs              # the whole run, phases A to I
-RESUME=1 node tests/on_chain/smoke.mjs     # continue a run that was cut off, from the saved state
+COMMIT=<sha> node tests/on_chain/smoke.mjs             # the whole version 2 run, phases A to F
+COMMIT=<sha> RESUME=1 node tests/on_chain/smoke.mjs    # continue a run that was cut off, from the saved state
 ```
 
+`COMMIT` is the commit `registry/` was pushed in: the validators read the
+register pages from `raw.githubusercontent.com` at that commit, and the runner
+refuses to start until those pages are byte for byte the files in this checkout.
 It deploys its own copies with accounts it generates and funds from the Studio
 faucet, and never touches a wallet of anybody's own. Every step is saved as it
 is made, so a run that is cut off continues without sending anything twice. The
-full run takes about two hours, because the notice windows and the expiry
-windows are real and every transaction is waited on until it is final.
+run takes under an hour, because the notice window, two holds and the expiry
+windows are real and every transaction is waited on until it is final. The
+version 1 runner, with its probe, is `tests/on_chain/smoke.mjs` at commit
+`f628a69`.
 
 ## Network
 
@@ -391,7 +679,7 @@ GenLayer Studio, chain 61999, RPC `https://studio.genlayer.com/api`, explorer
 `https://explorer-studio.genlayer.com`. Runner
 `py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6`.
 
-## Evidence
+## Evidence for version 1
 
 Run on 3 October 2026 on GenLayer Studio (chain 61999), from start to finish in one sitting of 106 minutes:
 88 transactions in 88 steps, none sent a second time, and 114 of 114 checks true. Register
@@ -461,13 +749,18 @@ reading that stands names the spend it was made on; the fixture holds four depos
 one returned and one cancelled. Over the run A is 240 GEN down, which is what the desk paid out while only A's
 money was in it, and B and D are level.
 
-Every one of the 88 steps, with its transaction and tally, is in [tests/on_chain.md](tests/on_chain.md). The
-other half of the evidence is offline: 298 tests with no network, and `tests/MUTATIONS.md`, where each of 282
-defences is removed in turn and a test fails for every one.
+Every one of the 88 steps, with its transaction and tally, is in [tests/on_chain.md](tests/on_chain.md). That
+run was made by the version 1 runner, `tests/on_chain/smoke.mjs` at commit `f628a69`. The other half of the
+evidence was offline: 298 tests with no network, and a mutation table where each of 282 defences was removed in
+turn and a test failed for every one.
 
 The site's practice desk was also run for real against a copy of these bytes: a visitor with one wallet enrolled,
 was read `UU` and counted, the second clear reading paid 0.2 GEN in that transaction, and the member who part owns
 the print shop was read `GU` and refused on a spend that paid it.
+
+## Evidence for version 2
+
+The on-chain run is recorded here once it has run.
 
 ## Licence
 

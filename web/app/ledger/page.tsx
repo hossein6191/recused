@@ -244,7 +244,7 @@ export default function LedgerPage() {
 }
 
 function SpendEntry({ s, now, readings, onlyRecusals, onRetry }: { s: SpendRow; now: number; readings: Reading[] | null | undefined; onlyRecusals: boolean; onRetry: () => void }) {
-  const list = (readings ?? []).filter((r) => !onlyRecusals || r.verdict !== "clear");
+  const list = (readings ?? []).filter((r) => !onlyRecusals || r.verdict !== "clear" || r.struck);
   return (
     <li className="rounded-xl border bg-background/40 p-4">
       <Link href={spendPath(s.desk, s.n)} className="group flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -255,6 +255,12 @@ function SpendEntry({ s, now, readings, onlyRecusals, onRetry }: { s: SpendRow; 
             to <span className="font-mono">{short(s.payee)}</span>
           </span>
           <PhaseBadge phase={phaseOf(s, now)} />
+          {s.challenges ? (
+            <span className="text-xs text-muted-foreground">
+              {s.challenges} {s.challenges === 1 ? "challenge" : "challenges"}
+              {s.struck ? `, ${s.struck} struck` : ""}
+            </span>
+          ) : null}
         </div>
         <div className="flex items-center gap-3">
           <ApprovalDots approvals={s.approvals} />
@@ -273,18 +279,19 @@ function SpendEntry({ s, now, readings, onlyRecusals, onRetry }: { s: SpendRow; 
         ) : readings === null ? (
           <ReadError onRetry={onRetry} compact />
         ) : list.length === 0 ? (
-          <p className="text-xs text-muted-foreground">Every reading on it was clear.</p>
+          <p className="text-xs text-muted-foreground">Every reading on it was clear, and none was struck.</p>
         ) : (
           <ul className="space-y-2">
             {list.map((r) => (
               <li key={r.member + r.attempt} className="rounded-lg border bg-card p-3 text-sm">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">{r.number}</span>
+                  <span className={r.struck ? "font-medium line-through decoration-breaks decoration-2" : "font-medium"}>{r.number}</span>
                   <Address value={r.member} className="text-xs" />
                   <VerdictBadge verdict={r.verdict} />
-                  <code className="rounded border px-1.5 py-0.5 font-mono text-xs" title="if carried out, if not carried out">
+                  <code className={r.struck ? "rounded border px-1.5 py-0.5 font-mono text-xs line-through decoration-breaks" : "rounded border px-1.5 py-0.5 font-mono text-xs"} title="if carried out, if not carried out">
                     {r.value}
                   </code>
+                  {r.struck ? <span className="rounded-full border border-breaks/50 bg-breaks/10 px-2 py-0.5 text-[11px] text-breaks">struck by {r.struckBy}</span> : null}
                 </div>
                 <p className="mt-1.5 text-xs text-foreground/85">{r.why}</p>
                 <p className="mt-1 text-[11px] text-muted-foreground">

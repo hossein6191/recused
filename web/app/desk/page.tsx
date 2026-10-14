@@ -7,7 +7,7 @@
 import { SectionHelp } from "@/components/section-help";
 import * as React from "react";
 import Link from "next/link";
-import { ArrowRight, ChevronDown, ChevronUp, FlaskConical, PiggyBank, Plus, Undo2, Users } from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronUp, FlaskConical, Gavel, PiggyBank, Plus, ShieldAlert, Undo2, Users } from "lucide-react";
 
 import { Address } from "@/components/address";
 import { BlockSkeleton, ReadBlock, ReadError } from "@/components/read-state";
@@ -24,12 +24,16 @@ import { useMe } from "@/components/use-me";
 import { useRead } from "@/components/use-read";
 import { succeeded, useTx } from "@/components/use-tx";
 import { WalletGate } from "@/components/wallet-gate";
+import { VersionOneNotice } from "@/components/v2";
 import {
   LIMITS,
   NO_REGISTER,
+  STAKE_ATTO,
   calls,
   isMock,
+  memberPath,
   openedDesk,
+  registriesProblem,
   phaseOf,
   readCredit,
   readDesk,
@@ -48,11 +52,12 @@ import {
 } from "@/lib/chain";
 import { gen, minutesLabel, short, span, toAtto, when } from "@/lib/format";
 import { isAddress, setCurrentDesk } from "@/lib/register";
+import { HOLD_SUGGESTIONS, STAKE_SUGGESTIONS, registrySuggestions } from "@/lib/suggestions";
 import { cn } from "@/lib/utils";
 
 const card = "rounded-2xl border bg-card p-5 sm:p-6";
 /** Disclosures opened without a click; the rest open on demand, one view call each. */
-const AUTO_OPEN = isMock ? 24 : 4;
+const AUTO_OPEN = isMock ? 20 : 4;
 
 export default function DeskPage() {
   const deskId = useDeskId();
@@ -63,7 +68,7 @@ export default function DeskPage() {
   const members = useRead(() => readMembers(deskId), [deskId], { enabled: exists });
   const spends = useRead(() => readSpends(deskId), [deskId], { enabled: exists });
 
-  // The register lists its 24 most recent desks; the ones before them are read a page at a time.
+  // The register lists its 20 most recent desks; the ones before them are read a page at a time.
   const [earlier, setEarlier] = React.useState<{ rows: DeskRow[]; first: number; loading: boolean; error: string }>({
     rows: [],
     first: Number.MAX_SAFE_INTEGER,
@@ -71,7 +76,7 @@ export default function DeskPage() {
     error: "",
   });
   const showEarlier = async (listedFrom: number) => {
-    const from = Math.max(1, Math.min(listedFrom, earlier.first) - 24);
+    const from = Math.max(1, Math.min(listedFrom, earlier.first) - 20);
     const upTo = Math.min(listedFrom, earlier.first);
     setEarlier((e) => ({ ...e, loading: true, error: "" }));
     try {
@@ -115,6 +120,7 @@ export default function DeskPage() {
         ) : null}
       </div>
 
+      <VersionOneNotice />
       {desk.error === NO_REGISTER ? null : (
         <div className="flex flex-col gap-3 rounded-2xl border border-primary/40 bg-primary/5 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -124,7 +130,8 @@ export default function DeskPage() {
             <p className="mt-1 text-muted-foreground">
               A disclosure you file today is newer than every spend already on a desk, so countersigning one of them can only be
               refused as filed too late. That is the rule working. The practice desk opens a fresh desk and plays the other
-              members, so you can be read by the validators and see the fund pay without anybody else present.
+              members, so you can be read by the validators and see the fund pay without anybody else present, or catch a member
+              who hid a relation to the payee with a page of a public register.
             </p>
           </div>
           <Button asChild variant="cool" size="sm" className="shrink-0">
@@ -210,7 +217,7 @@ export default function DeskPage() {
                   {(rows) => (
                     <ul className="space-y-3">
                       {rows.map((m, i) => (
-                        <MemberCard key={m.who} desk={d.id} row={m} mine={m.who === me.address} startOpen={i < AUTO_OPEN || m.who === me.address} />
+                        <MemberCard key={m.who} desk={d.id} deskStake={d.memberStakeAtto} row={m} mine={m.who === me.address} startOpen={i < AUTO_OPEN || m.who === me.address} />
                       ))}
                     </ul>
                   )}
@@ -264,11 +271,15 @@ function DeskSummary({ desk }: { desk: Desk }) {
       </div>
       <p className="mt-3 text-sm text-muted-foreground">
         {desk.openEnrolment
-          ? "Anyone may enrol on this desk, with nobody's permission. That also means the desk is not safe for money that matters: enrolment is free, and three addresses one person controls could post a spend and carry it."
+          ? "Anyone may enrol on this desk, with nobody's permission. That also means the desk is not safe for money that matters: enrolment costs only the stake, and three addresses one person controls could post a spend and carry it."
           : "Only the addresses named when this desk was opened may enrol. The roster can never be changed, not even by the opener."}{" "}
         Every spend here gives its members at least {minutesLabel(desk.minNoticeMinutes)} of notice before anyone may countersign;
         that floor was fixed when the desk was opened.
+        {desk.version === 2
+          ? ` Every member stakes ${gen(desk.memberStakeAtto)} to sign, and a spend carried by two clear readings waits ${minutesLabel(desk.holdMinutes)} in its hold, open to challenge, before anyone may release the payment.`
+          : ""}
       </p>
+      {desk.version === 2 ? <DeskRegister desk={desk} /> : null}
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Figure label="In the pot" value={gen(desk.potAtto)} note="Everything the desk holds now." />
         <Figure label="Committed" value={gen(desk.committedAtto)} note={`Set aside for ${desk.openSpends} open ${desk.openSpends === 1 ? "spend" : "spends"}.`} />
@@ -282,8 +293,41 @@ function DeskSummary({ desk }: { desk: Desk }) {
           }
         />
         <Figure label="Paid out" value={gen(desk.drawnAtto)} note={`${desk.paid} paid, ${desk.expired} expired, ${desk.readings} readings stored.`} />
+        {desk.version === 2 ? (
+          <>
+            <Figure label="Member stakes held" value={gen(desk.stakedAtto)} note={`${gen(desk.memberStakeAtto)} each; a struck signature costs the whole of it.`} />
+            <Figure label="In a hold now" value={String(desk.holding)} note={`Spends waiting out their ${minutesLabel(desk.holdMinutes)} hold, open to challenge.`} />
+            <Figure label="Challenges read" value={String(desk.challenges)} note={`${desk.hidden} hidden conflicts proven, ${desk.cleared} cleared, ${desk.unclear} unclear.`} />
+            <Figure label="Slashed into the pot" value={gen(desk.slashedInAtto)} note="The desk's half of every slashed stake." />
+          </>
+        ) : null}
       </div>
     </section>
+  );
+}
+
+/** The public registers a challenge on this desk may cite, fixed when it was opened. */
+function DeskRegister({ desk }: { desk: Desk }) {
+  return (
+    <div className="mt-4 rounded-xl border bg-background/40 p-4 text-sm">
+      <p className="flex items-center gap-2 font-medium">
+        <Gavel className="size-4 text-primary" /> The public {desk.registries.length === 1 ? "register" : "registers"} a challenge may cite
+        <SectionHelp k="desk-register" />
+      </p>
+      <ul className="mt-2 space-y-1">
+        {desk.registries.map((r) => (
+          <li key={r}>
+            <a href={r} target="_blank" rel="noopener noreferrer" className="font-mono text-xs break-all text-primary underline-offset-4 hover:underline">
+              {r}
+            </a>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Named when the desk was opened and never again, before any spend existed, so nobody can cite a page of their own choosing.
+        Whoever controls one of these prefixes, the opener included, controls what its pages say: judge the registers before you enrol.
+      </p>
+    </div>
   );
 }
 
@@ -317,7 +361,11 @@ function SpendLine({ s, now }: { s: SpendRow; now: number }) {
         ? `${span(s.windowUntil - now)} left to countersign`
         : phase === "overdue"
           ? "its window has passed; anyone may expire it"
-          : "";
+          : phase === "holding"
+            ? `in its hold for ${span(s.holdUntil - now)}, open to challenge`
+            : phase === "releasable"
+              ? "hold over; anyone may release it"
+              : "";
   return (
     <li className="py-3 first:pt-0 last:pb-0">
       <Link href={spendPath(s.desk, s.n)} className="group flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -331,6 +379,8 @@ function SpendLine({ s, now }: { s: SpendRow; now: number }) {
             to <span className="font-mono">{short(s.payee)}</span>
             {timing ? ` · ${timing}` : ""} · {s.idents} {s.idents === 1 ? "identification" : "identifications"} · {s.attempts}{" "}
             {s.attempts === 1 ? "reading" : "readings"}
+            {s.challenges ? ` · ${s.challenges} ${s.challenges === 1 ? "challenge" : "challenges"}` : ""}
+            {s.struck ? ` · ${s.struck} struck` : ""}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -344,16 +394,25 @@ function SpendLine({ s, now }: { s: SpendRow; now: number }) {
   );
 }
 
-function MemberCard({ desk, row, mine, startOpen }: { desk: string; row: MemberRow; mine: boolean; startOpen: boolean }) {
+function MemberCard({ desk, deskStake, row, mine, startOpen }: { desk: string; deskStake: string; row: MemberRow; mine: boolean; startOpen: boolean }) {
   const [open, setOpen] = React.useState(startOpen);
+  const stakeShown = deskStake !== "0";
+  const stakeWhole = BigInt(row.stakeAtto) >= BigInt(deskStake);
   const full = useRead(() => readMember(desk, row.who), [desk, row.who, row.version], { enabled: open });
   return (
     <li className={cn("rounded-xl border bg-background/40 p-4", mine && "ring-1 ring-primary/50")}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
           <span className="font-semibold">{row.number}</span>
+          {row.publicName ? <span className="font-medium">{row.publicName}</span> : null}
           <Address value={row.who} className="text-xs" />
           {mine ? <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] text-primary">you</span> : null}
+          {row.retired ? <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">retired</span> : null}
+          {row.hidden ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-breaks/50 bg-breaks/10 px-2 py-0.5 text-[11px] text-breaks">
+              <ShieldAlert className="size-3" /> {row.hidden} hidden {row.hidden === 1 ? "conflict" : "conflicts"} proven
+            </span>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <span className="rounded-full border px-2 py-0.5">sequence {row.filedSeq}</span>
@@ -363,6 +422,16 @@ function MemberCard({ desk, row, mine, startOpen }: { desk: string; row: MemberR
           </Button>
         </div>
       </div>
+      {stakeShown ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Stake {gen(row.stakeAtto)}
+          {stakeWhole ? "" : `, ${gen(BigInt(deskStake) - BigInt(row.stakeAtto))} short of the desk's ${gen(deskStake)}, so may not countersign until restaked`} · {row.holdsOpen} counted{" "}
+          {row.holdsOpen === 1 ? "signature" : "signatures"} in a hold · survived {row.cleared} {row.cleared === 1 ? "challenge" : "challenges"} ·{" "}
+          <Link href={memberPath(desk, row.who)} className="text-primary underline-offset-4 hover:underline">
+            member page
+          </Link>
+        </p>
+      ) : null}
       {open ? (
         <div className="mt-3">
           <ReadBlock
@@ -453,9 +522,20 @@ function YourPosition({ desk, me, members, onChanged }: { desk: Desk; me: string
             <p className="text-muted-foreground">Connect a wallet to see whether you are a member or a funder of this desk.</p>
           ) : mine ? (
             <p>
-              You are member <strong>{mine.number}</strong>, filed at sequence number {mine.filedSeq}. You may post spends,
+              You are member <strong>{mine.number}</strong>
+              {mine.publicName ? `, ${mine.publicName},` : ""} filed at sequence number {mine.filedSeq}. You may post spends,
               identify payees and countersign spends posted after that number. You have {mine.openPosted} of the{" "}
               {LIMITS.openSpendsPerPoster} spends one member may have open at once.
+              {desk.version === 2 ? (
+                <>
+                  {" "}
+                  Your stake on this desk is {gen(mine.stakeAtto)}
+                  {mine.retired ? " and you have retired" : ""}.{" "}
+                  <Link href={memberPath(desk.id)} className="text-primary underline-offset-4 hover:underline">
+                    Your stake and public record
+                  </Link>
+                </>
+              ) : null}
             </p>
           ) : !desk.openEnrolment && !desk.roster.includes(me) ? (
             <p className="text-muted-foreground">
@@ -538,6 +618,9 @@ function OpenDesk({ onOpened, startOpen }: { onOpened: () => void; startOpen: bo
   const [roster, setRoster] = React.useState("");
   const [amount, setAmount] = React.useState("5");
   const [notice, setNotice] = React.useState(String(LIMITS.noticeMinutes[0]));
+  const [registries, setRegistries] = React.useState(() => registrySuggestions()[0]?.value ?? "");
+  const [stake, setStake] = React.useState("0.1");
+  const [hold, setHold] = React.useState("5");
   const [error, setError] = React.useState("");
   const tx = useTx((s) => {
     const opened = succeeded(s) ? openedDesk(s) : null;
@@ -569,7 +652,19 @@ function OpenDesk({ onOpened, startOpen }: { onOpened: () => void; startOpen: bo
     const floor = Number(notice.trim());
     if (!Number.isInteger(floor) || floor < LIMITS.noticeMinutes[0] || floor > LIMITS.noticeMinutes[1])
       return setError(`The minimum notice is a whole number of minutes, ${LIMITS.noticeMinutes[0]} to ${LIMITS.noticeMinutes[1]}.`);
-    void tx.start(calls.openDesk(name, unique, value, floor));
+    const regs = registriesProblem(registries.split(/\s+/));
+    if (regs.problem) return setError(regs.problem);
+    let stakeAtto: bigint;
+    try {
+      stakeAtto = toAtto(stake || "0");
+    } catch (e) {
+      return setError(e instanceof Error ? e.message : "Enter the member stake.");
+    }
+    if (stakeAtto < STAKE_ATTO[0] || stakeAtto > STAKE_ATTO[1]) return setError(`The member stake is ${gen(STAKE_ATTO[0])} to ${gen(STAKE_ATTO[1])}.`);
+    const holdMinutes = Number(hold.trim());
+    if (!Number.isInteger(holdMinutes) || holdMinutes < LIMITS.holdMinutes[0] || holdMinutes > LIMITS.holdMinutes[1])
+      return setError(`The hold is a whole number of minutes, ${LIMITS.holdMinutes[0]} to ${LIMITS.holdMinutes[1]}.`);
+    void tx.start(calls.openDesk(name, unique, value, floor, regs.prefixes, stakeAtto, holdMinutes));
   };
 
   return (
@@ -586,7 +681,8 @@ function OpenDesk({ onOpened, startOpen }: { onOpened: () => void; startOpen: bo
         ) : null}
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        Anyone may. You name the desk, fix its roster once and for all (or leave it empty for open enrolment), and the value you
+        Anyone may. You name the desk, fix its roster once and for all (or leave it empty for open enrolment), name the public
+        registers a challenge may cite, the stake every member puts up and the hold every carried spend waits out, and the value you
         send is its first funding, credited to you and reclaimable by you alone. Opening a desk gives you no other power over it.
       </p>
       {visible ? (
@@ -617,7 +713,7 @@ function OpenDesk({ onOpened, startOpen }: { onOpened: () => void; startOpen: bo
                 onChange={(e) => setRoster(e.target.value)}
                 rows={3}
                 className="font-mono text-xs"
-                placeholder="Leave empty for open enrolment, or list 3 to 24 addresses, one per line."
+                placeholder="Leave empty for open enrolment, or list 3 to 20 addresses, one per line."
                 disabled={busy}
               />
               <p className="text-xs text-muted-foreground">
@@ -633,6 +729,45 @@ function OpenDesk({ onOpened, startOpen }: { onOpened: () => void; startOpen: bo
                 {LIMITS.noticeMinutes[1]} minutes. It is the time members have to see a spend and say who its payee is. Fixed here
                 for good: {LIMITS.noticeMinutes[0]} suits a demonstration, a desk holding real money wants hours.
               </p>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="desk-registries">Public registers a challenge may cite (1 to {LIMITS.registries[1]} address prefixes, one per line)</Label>
+              <Textarea
+                id="desk-registries"
+                value={registries}
+                onChange={(e) => setRegistries(e.target.value)}
+                rows={2}
+                className="font-mono text-xs"
+                placeholder="https://registry.example/companies/"
+                disabled={busy}
+              />
+              <Suggest options={registrySuggestions()} onPick={(v) => setRegistries(v)} disabled={busy} />
+              <p className="text-xs text-muted-foreground">
+                Each is an https prefix ending in /, at most {LIMITS.registryChars} characters, with no query or port. During a spend&apos;s hold
+                anyone may cite a page below one of them against a counted signature, and every validator fetches it on the live web. Fixed
+                here for good, before any spend exists. Whoever controls a prefix controls what its pages say, you included, so name
+                registers the members trust; a branch of a repository can change, a commit cannot.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label htmlFor="desk-stake">Member stake (GEN)</Label>
+                <Input id="desk-stake" value={stake} onChange={(e) => setStake(e.target.value)} inputMode="decimal" className="w-32" disabled={busy} />
+                <Suggest options={STAKE_SUGGESTIONS.map((o) => ({ label: o.label, value: gen(o.value, "") }))} onPick={setStake} disabled={busy} />
+                <p className="text-xs text-muted-foreground">
+                  What every member puts up when they enrol, {gen(STAKE_ATTO[0])} to {gen(STAKE_ATTO[1])}. A signature a register page shows
+                  to have hidden a relation to the payee costs the whole of it: half to whoever cited the page, half into the pot.
+                </p>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="desk-hold">Hold (minutes)</Label>
+                <Input id="desk-hold" value={hold} onChange={(e) => setHold(e.target.value)} inputMode="numeric" className="w-32" disabled={busy} />
+                <Suggest options={HOLD_SUGGESTIONS.map((o) => ({ label: o.label, value: String(o.value) }))} onPick={setHold} disabled={busy} />
+                <p className="text-xs text-muted-foreground">
+                  How long a spend carried by two clear readings waits, open to challenge, before anyone may release it:{" "}
+                  {LIMITS.holdMinutes[0]} minutes to {minutesLabel(LIMITS.holdMinutes[1])}.
+                </p>
+              </div>
             </div>
             {error ? <p className="text-sm text-gold">{error}</p> : null}
             <Button type="button" variant="cool" disabled={busy || !me.address} onClick={submit}>

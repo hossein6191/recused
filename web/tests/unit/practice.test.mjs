@@ -1,12 +1,13 @@
-// The practice desk's script and order (lib/practice.ts), run from node with no network:
+// The practice desk's first track, its script and order (lib/practice.ts), run from node with no network:
 //
-//   node --test tests/unit/practice.test.mjs
+//   node --import ./tests/unit/ts-resolve.mjs --test tests/unit/practice.test.mjs
 //
 // What is pinned here is what the page promises a visitor: the spend is never posted before
 // their own disclosure is on chain, nothing waits on a window by guessing the time, the member
 // the second spend pays is never its poster, a step with a transaction in flight is never sent
-// again, and every text the page-held members file fits the limits the contract enforces
-// (read from the contract source the site serves, so a changed limit fails here first).
+// again, the payment waits for the hold and is released only after it, and every text the
+// page-held members file fits the limits the contract enforces (read from the contract source the
+// site serves, so a changed limit fails here first).
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -17,6 +18,7 @@ import { fileURLToPath } from "node:url";
 import {
   ACTIONS,
   CAST,
+  HOLD_MINUTES,
   IDENTIFY_NEEDS_S,
   LIVE_MINUTES,
   MARK_WAIT_MS,
@@ -25,7 +27,9 @@ import {
   SIGNER,
   SPEND1,
   SPEND2,
+  STAKE_ATTO,
   VISITOR_DISCLOSURE,
+  VISITOR_PUBLIC_NAME,
   blankAction,
   blankState,
   blocked,
@@ -67,7 +71,7 @@ const spendPosted = () => {
   const s = finish(deskReady(), "enrolYou", "post1");
   s.visitor = address(9);
   s.members.you = { number: "M4", filedSeq: 5 };
-  s.s1 = { n: 1, noticeUntil: T, windowUntil: T + 3600, postedSeq: 6 };
+  s.s1 = { n: 1, noticeUntil: T, windowUntil: T + 3600, postedSeq: 6, holdUntil: 0 };
   return s;
 };
 
@@ -84,6 +88,26 @@ test("the setup runs in order: faucet, then the desk, then the three disclosures
   assert.deepEqual(nextHeld(s, 0, NOW_MS), ["open"]);
   finish(s, "open");
   assert.deepEqual(nextHeld(s, 0, NOW_MS), ["enrolTeacher", "enrolPrinter", "enrolNurse"]);
+});
+
+test("a practice member enrols only once its account holds the GEN its stake needs", () => {
+  const s = finish(started(), "fundTeacher", "open");
+  assert.deepEqual(nextHeld(s, 0, NOW_MS), ["fundPrinter", "fundNurse", "enrolTeacher"]);
+  assert.match(blocked(s, "enrolPrinter", 0), /no test GEN for the stake/);
+});
+
+test("the second clear reading starts a hold, and the teacher releases the spend only once the hold has run on the chain's clock", () => {
+  const s = spendPosted();
+  s.readings = { you: reading("clear"), printer: reading("clear") };
+  finish(s, "signYou", "signPrinter");
+  assert.match(blocked(s, "release1", T + 60), /not in its hold yet/);
+  s.s1.holdUntil = T + 60 + HOLD_MINUTES * 60;
+  assert.equal(reserveNeeded(s), false, "a spend in its hold needs no reserve");
+  assert.match(blocked(s, "release1", 0), /clock has not been read/);
+  assert.match(blocked(s, "release1", s.s1.holdUntil - 1), /hold is still running/);
+  assert.match(blocked(s, "release1", s.s1.holdUntil), /hold is still running/, "the margin keeps the call's own clock past the hold");
+  assert.deepEqual(nextHeld(s, s.s1.holdUntil + NOTICE_MARGIN_S, NOW_MS), ["release1"]);
+  assert.equal(SIGNER.release1, "teacher", "a page-held member releases it; release needs no membership, and the teacher was never read");
 });
 
 test("the spend is never posted before the visitor's own disclosure is on chain", () => {
@@ -127,7 +151,7 @@ test("the print shop co-owner countersigns only after the visitor has been read"
 test("the night nurse countersigns only when one of the two readings was not clear", () => {
   const both = spendPosted();
   both.readings = { you: reading("clear"), printer: reading("clear") };
-  both.paid = { atto: "1", to: address(4), by: "printer", potAtto: "0" };
+  both.s1.holdUntil = T + 400;
   finish(both, "signYou", "signPrinter");
   assert.equal(reserveNeeded(both), false);
   assert.deepEqual(nextHeld(both, T + 60, NOW_MS), []);
@@ -159,7 +183,7 @@ test("the contrast is one click, and the member it would pay never posts it", ()
   assert.equal(/print|pelican/i.test(SPEND1.description), false, "the first spend has nothing in it the print shop touches");
 
   finish(s, "post2");
-  s.s2 = { n: 2, noticeUntil: T + 300, windowUntil: T + 3900, postedSeq: 8 };
+  s.s2 = { n: 2, noticeUntil: T + 300, windowUntil: T + 3900, postedSeq: 8, holdUntil: 0 };
   assert.deepEqual(nextHeld(s, T + 10, NOW_MS), ["identify2"]);
   assert.match(blocked(s, "sign2", T + 400), /identification is settled first/);
   finish(s, "identify2");
@@ -223,7 +247,8 @@ test("the stored state survives a reload: outcomes are kept, anything in motion 
 test("a stored state for another register, an old version, or junk is not used", () => {
   const raw = JSON.stringify(spendPosted());
   assert.equal(parseState(raw, "0x" + "f".repeat(40)), null);
-  assert.equal(parseState(raw.replace('"v":1', '"v":0'), REGISTER), null);
+  assert.ok(raw.includes('"v":2'));
+  assert.equal(parseState(raw.replace('"v":2', '"v":1'), REGISTER), null, "a version 1 practice desk is not resumed on version 2");
   assert.equal(parseState("", REGISTER), null);
   assert.equal(parseState("{not json", REGISTER), null);
   assert.equal(parseState(JSON.stringify({ ...spendPosted(), keys: { teacher: "nope" } }), REGISTER), null);
@@ -243,8 +268,12 @@ test("a row's state follows its calls, and a recusal reads as refused", () => {
   assert.equal(rowPhase(s, "sign"), "done");
   s.readings.printer = reading("clear");
   finish(s, "signPrinter");
-  s.paid = { atto: "1", to: address(4), by: "printer", potAtto: "0" };
   assert.equal(rowPhase(s, "pay"), "done", "the reserve is not waited for when two readings were clear");
+  s.s1.holdUntil = T + 400;
+  assert.equal(rowPhase(s, "pay"), "waiting", "a spend in its hold waits for its release");
+  finish(s, "release1");
+  s.paid = { atto: "1", to: address(4), potAtto: "0" };
+  assert.equal(rowPhase(s, "pay"), "done");
   assert.equal(rowPhase(s, "contrast"), "waiting");
 });
 
@@ -279,6 +308,13 @@ test("every text the practice desk files fits the limits written in the contract
   fits(identification(""), limit("MIN_IDENT"), limit("MAX_IDENT"), "the identification");
   fits(deskLabel(address(1)), limit("MIN_LABEL"), limit("MAX_LABEL"), "the desk's name");
   assert.ok(SPEND1.amountAtto + SPEND2.amountAtto <= 10n ** 18n, "both spends fit inside the pot together");
+  for (const name of [...ROLES.map((r) => CAST[r].publicName), VISITOR_PUBLIC_NAME]) {
+    fits(name, limit("MIN_PUBLIC_NAME"), limit("MAX_PUBLIC_NAME"), "a public name");
+    assert.match(name, /[A-Za-z]/);
+  }
+  assert.ok(STAKE_ATTO >= 10n ** 18n / 10n && STAKE_ATTO <= 100n * 10n ** 18n, "the practice stake is one a desk may ask");
+  assert.ok(HOLD_MINUTES >= limit("MIN_HOLD_MINUTES") && HOLD_MINUTES <= limit("MAX_HOLD_MINUTES"), "the practice hold is one a desk may fix");
+  assert.ok(10n * 10n ** 18n >= 10n ** 18n + STAKE_ATTO, "the teacher's faucet GEN covers the pot and the stake");
 });
 
 test("the script stays inside the contract's caps: one poster, two open spends, and the shortest notice", () => {

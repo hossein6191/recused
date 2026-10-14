@@ -655,3 +655,185 @@ a member or a funder would notice:
 - a stranger could turn a member's refusal out of a desk's ring;
 - a desk in ordinary use stopped taking refills after nineteen of them;
 - any address could close the fixture to everybody for 64 atto.
+
+## 16. Version 2: what a member hid, a public register can prove
+
+Version 1's first stated limit was that the contract reads what a member filed
+and cannot know what they hid. Version 2 answers it for one kind of hiding, a
+relation to the payee that a public register shows, and leaves the rest of
+version 1 as it was: the reading of a countersignature is the same block, the
+same prompts and the same seven tokens, word for word.
+
+**Members stake to sign, and the second clear reading starts a hold.** A
+signature that can be struck must be able to cost something, and a payment that
+has already left cannot be stopped. So `enrol` takes exactly the desk's stake,
+and the second clear reading latches the spend holding instead of paying it.
+The amount stays committed, nothing moves, and `release`, which anyone may call
+once the hold ends, pays exactly as the second clear reading did in version 1.
+*Cost:* every payment waits for the hold, 5 minutes to 7 days as the desk set
+it, and a member puts money down to take part at all.
+
+**The registers are named when the desk is opened, before any spend exists.**
+If a challenger could cite any page, the evidence would be whatever the
+challenger can publish: one page on a host they control would strike any
+signature they liked. A prefix fixed with the desk, never changeable and
+published by `desk()`, means that a page counts only if it sits under a register
+everybody could see before the spend was posted, and a member who enrols has
+accepted those registers. It does not mean nobody can host the evidence: the
+opener, or anyone who can publish under a named prefix, decides what its pages
+say. The address is held to a shape two validators cannot
+resolve differently: https, a lowercase host, a path of letters, digits and
+`- . _ ~ /`, no query, no port, no empty or dot segment, and below the prefix,
+never the prefix itself. *Cost:* a relation that only some other register
+shows is not caught, and an opener who controls a named register controls what
+it says; the second is a reason not to join such a desk, and the registers are
+public so that a member can see it.
+
+**One block, two framings, two orders, and the page fingerprinted.** The finding
+is a closed word plus the first sixteen hex characters of the sha256 of the page
+as judged. Each validator fetches the page itself, reads the status first (400
+or above is a failed read, never a page that showed nothing), cuts the raw text
+to 32,000 characters before anything else so the work never grows with the page,
+collapses its spacing, keeps 8,000, fingerprints that, and asks SHOWS and SILENT
+each with the page first and with the documents first. Hidden needs SHOWS yes
+twice and SILENT no twice; clean needs the mirror; everything else is unclear.
+The validators compare the word and the fingerprint by exact equality, so a page
+that reads differently for two of them stores nothing. A leader whose fetch or
+model call failed is never agreed with, because a failed read is not a finding:
+nothing is written, no bond is taken, and the same challenge can be made again.
+The page and both documents are fenced, and each block is tagged with the start
+of its own sha256, so no text inside a block can write the line that closes it.
+
+**The disclosure read is the one the signature was given against.** A member may
+amend after countersigning. The register round reads the version the reading
+row names, from the history if it has been superseded, because the signature
+was given against that text. An amendment that adds the relation afterwards
+does not excuse having signed without it.
+
+**The public name is the member's own word.** The fund checks no identity; a
+name on a register page is the register's claim. The name is printed in the
+question inside the fund's own quotation marks, refused at the door if it could
+close them, and shown on the member's record so the other members can judge
+whether it is the name the registers would use.
+
+**Why clean needs a page that names the member.** As first built, SILENT asked
+whether the page was silent about any relation between the named person and the
+payee. A page that does not name the member at all is silent about them, so it
+read clean and paid the challenger's bond to the member. Since the member picks
+the public name, a member hiding a directorship could enrol as "M. Q. Harbour"
+instead of the "Mara Quist" the register prints, and every accurate challenge
+would then read clean and pay them. The audit found it; SILENT now asks whether
+the page gives the member's name and is silent, or shows only what the
+disclosure mentions, and says that a page which does not give the name is
+answered no. A page that never names the member now answers no to both
+questions, which is unclear, and the bond goes back. This keeps four askings
+and the same combine rule, and the mirror still guards against a reader that
+says yes, or no, to everything. *Cost:* the nickname still escapes the register;
+it just no longer pays. A wrong accusation that costs the bond is now exactly
+one whose page names the member and shows nothing they hid about the payee.
+
+**Why the stake is slashed whole.** A partial slash would make hiding a priced
+risk: a member who expected to gain more than the slashed fraction from a spend
+would hide and pay. The whole stake is the most the contract holds against that
+member, so it is all of it. Half goes to the challenger because finding the page
+and paying the bond is work somebody has to be paid for, and half goes into the
+desk because the funders' money is what the hidden relation was steering. *Cost:*
+a stake is slashed once.
+
+**Why a struck signature stops counting on the other spends of its run.** A
+strike writes a standing row for the member on that payee address and run, so
+the member is refused on every later spend of the run. As first built that row
+was only read by `approve`, so a signature the member had already given on a
+second spend to the same payee stayed counted: that spend could hold and be
+released on it, with the member's stake already gone and nothing left for a
+challenger to be paid from. Now `release`, and the second clear reading before
+it starts a hold, each look up the standing row of both counted members (two
+lookups, O(1)); a member struck in the run has that signature marked struck by
+the run and dropped, with no second slash, and the spend goes back to open, or
+expires if its window has passed, exactly as a strike sends it. Dropping it at
+the moment of the strike instead would mean walking the run's other spends,
+which no settlement here does. *Cost:* until the other spend is next touched,
+its view still shows the signature counted.
+
+**Why a clean finding costs the challenger the bond.** Every challenge reads the
+member's name against the payee in public. A wrong accusation costs the member
+something even when it fails, and without a price on it a stranger could make
+one against every signature on every spend. The bond is small, 0.05 GEN, and it
+goes to the member who was wrongly accused. An unclear finding returns it,
+because unclear is the register not letting anyone decide, which is not the
+challenger's fault; a page that shows only a former relation lands there by
+design.
+
+**Why a struck spend goes back to open rather than failing.** The spend itself
+was not the hidden relation; one signature was. Failing the spend would let one
+hidden conflict veto a payment the rest of the desk supports, and would let a
+member who wants a spend dead sign it with a conflict they intend to have
+exposed. So the struck reading stops counting, stays on the record marked
+struck, and stands refused for the rest of the run, and the spend needs one more
+clear reading from somebody else inside its window. If the window has already
+passed, the spend expires exactly as version 1 expires one, in the same
+transaction, and what funders who left had claimed on it is owed back to them.
+
+**Why there is no cap on challenges.** Any cap a stranger can reach is a way to
+close the door before the honest challenger arrives: fill the places with
+challenges that cannot succeed, and the page that would have struck the
+signature is never read. So nothing is capped. Each page is read once against
+each signature on each spend, and a clean finding costs its bond. Unclear
+findings are free, and a stranger can spend gas on them; they change nothing and
+they are counted in public.
+
+**Why the once-only rule is kept on the text as well as the address.** The
+address is checked before the fetch, but one page has many addresses: a
+trailing slash, a case variant on a case-insensitive host, a second path to the
+same record. Because unclear is free, a challenger could cite a borderline page
+(a former director, say) through alias after alias until one round came back
+hidden, which is the re-asking version 1 refuses everywhere else. So after the
+round the fingerprint is keyed against the signature as well: a page text
+already read against that signature on that spend is recorded as a repeat,
+nothing is settled and the bond stays in credit. The key is per signature, so
+the same page can still be read against the other signer. *Cost:* a reading that
+came back unclear for a passing reason cannot be had again on the same text; a
+page whose text has changed is a new page and is read.
+
+**What else the stake needed.** The design counts `holds_open`, the holds a
+member's reading is counted in, and lets a retired member withdraw at zero. That
+left a gap: a member whose reading was counted first on a spend still open
+could retire and withdraw before the second reading started the hold, and then
+be challenged with nothing at stake. So the contract also counts `signed_open`,
+the spends not yet ended on which the member's reading is counted, and refuses
+`withdraw_stake` while either count is above zero. Both are moved in O(1) at
+every point a counted reading starts, is struck, is paid or expires, and the
+seeded journeys check both against the rows after every step.
+
+**What the desk's half does to the funders.** It goes into the pot without new
+units, so it raises the share of every funder in the desk when it arrives. If no
+funder holds credit at that moment, there is nobody for it to belong to: `fund`
+gives the next funder one unit per atto when no units are outstanding, so a
+single atto would have bought the whole half, and the challenger could have
+taken it in the next transaction. So when the desk's units outstanding are zero
+the challenger is paid the whole stake, and nothing goes into the pot.
+
+**What the audit changed in the demonstration run.** Three things in the smoke
+script would have made its own evidence fail or contradict the design. The
+spend B signs was to a print shop while B co-owns another print shop, which
+this contract's own rule calls a competitor's interest, so her clear reading was
+not to be expected; the payee is now a caterer, Gull Catering Ltd, and its
+register page says so. Member C's disclosure named a claim on the fund itself,
+the profile that read unclear two times in five (README limit 14), on the step
+every later phase depends on; it no longer does. And the hold was ten minutes for
+six finalised transactions, three of them web rounds; it is 45 minutes now, the
+bond credit is deposited before the hold starts, and the script reads the spend
+before each challenge and sends none with less than five minutes of the hold
+left. The run also cites a page that does not name the member it is cited
+against, to show it reading unclear and costing nothing.
+
+**Rules from earlier reviews applied to the whole contract, version 1 included.**
+Every loop and comprehension in both contracts is clamped by a named constant or
+a page size, and a static test refuses any that is not; `_one_line` became one
+`translate` table. Every list a view returns is a page of at most twenty, so the
+member cap and the roster cap went from 24 to 20 and the desk, member and spend
+pages with them. A caller's JSON (the entries and the registers) is parsed with
+fractions, exponents, NaN and Infinity refused, so no float is ever built from
+it. Every payable write, `enrol` now among them, refunds and answers
+`{"ok": false}` on every refusal and never runs a model; a static test checks
+each of them for `_fail`, `_clock`, a raise and any nondet call.

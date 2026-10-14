@@ -1,4 +1,5 @@
-/* The practice desk, walked from the first click to the payment and then the recusal, in headless Chrome.
+/* The practice desk's first track, walked from the first click to the hold, the release and the payment, and
+ * then the recusal, in headless Chrome. (tests/site/catch.mjs walks the second track.)
  *
  *   node tools/dev.mjs                                      # demo mode on :3117 (in another terminal)
  *   node tests/site/practice.mjs                            # walks it against the in-memory contract
@@ -69,6 +70,8 @@ const record = (ok, step, note = "") => {
 const T = LIVE
   ? { setup: 240_000, call: 240_000, notice: 480_000, judged: 420_000, money: 240_000 }
   : { setup: 30_000, call: 20_000, notice: 20_000, judged: 30_000, money: 20_000 };
+/** The practice desk's hold, which the release waits out on the chain's clock. */
+const HOLD_MS = LIVE ? 9 * 60_000 : 20_000;
 
 const visitorKey = LIVE ? process.env.VISITOR_KEY || generatePrivateKey() : "";
 const visitor = LIVE ? privateKeyToAccount(visitorKey).address.toLowerCase() : "";
@@ -242,8 +245,8 @@ async function audit(st) {
     readings1: r1.rows.map((x) => `${x.number} ${x.value} ${x.verdict}`),
     readings2: r2.rows.map((x) => `${x.number} ${x.value} ${x.verdict}`),
   };
-  const once = desk.members === 4 && desk.spends === 2 && idents.rows.length === 1 && r1.rows.length === 2 && r2.rows.length === 1;
-  record(once, "read back from the chain: four members, two spends, one identification, three readings", JSON.stringify(facts));
+  const once = desk.members === 4 && desk.spends === 2 && idents.rows.length === 1 && r1.rows.length === 2 && r2.rows.length === 1 && desk.paid === 1;
+  record(once, "read back from the chain: four members, two spends, one identification, three readings, one release", JSON.stringify(facts));
   return facts;
 }
 
@@ -260,9 +263,19 @@ try {
   await phoneCheck("before the start");
 
   if (LIVE) {
+    // Enrolling stakes 0.1 GEN from the visitor's wallet: the throwaway key takes 10 test GEN from Studio's faucet first.
+    await fetch("https://studio.genlayer.com/api", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "sim_fundAccount", params: { account_address: getAddress(visitor), amount: 10e18 } }),
+    });
     await click("Connect wallet");
     await waitFor("the wallet to connect", () => page.evaluate((a) => document.body.innerText.toLowerCase().includes(a.slice(0, 6)), visitor), 60_000);
     record(true, "the visitor's wallet connects", visitor);
+  } else {
+    // The demo visitor starts with no GEN, and enrolling stakes 0.1 GEN.
+    await click("Get 10 test GEN");
+    await waitFor("the demo faucet", () => page.evaluate(() => /10 GEN/.test(document.body.innerText)), 10_000);
   }
 
   await click("Set up my practice desk");
@@ -326,10 +339,14 @@ try {
   await shot("visitor-reading");
 
   await waitAction("signPrinter", ["done"], T.judged);
-  await waitFor("the pay row to settle", async () => ["done", "refused", "stopped"].includes(await rowPhase("pay")), T.judged);
+  const held = await waitFor("the hold to start", async () => /in its hold/i.test(await rowText("pay")) && (await page.$('li[data-row="pay"] [data-wait]')), T.judged).catch(() => null);
+  record(!!held, "6a the second clear countersignature puts the spend in its hold, and pays nothing yet", (await rowText("pay")).replace(/\s+/g, " ").slice(0, 300));
+  await shot("hold");
+  if (!LIVE) await click("Demo mode only: skip the hold").catch(() => {});
+  await waitFor("the pay row to settle", async () => ["done", "refused", "stopped"].includes(await rowPhase("pay")), T.judged + HOLD_MS);
   const pay = await rowText("pay");
-  const paid = /^Paid\./m.test(pay) || /Paid\. The second clear countersignature/.test(pay);
-  record(paid, "6 the second countersignature pays the payee from the pot", pay.replace(/\s+/g, " ").slice(0, 300));
+  const paid = /^Paid\./m.test(pay);
+  record(paid, "6b after the hold, the teacher's release pays the payee from the pot", pay.replace(/\s+/g, " ").slice(0, 300));
   if (paid) {
     await waitFor("the transfer to land", () => page.$('[data-payment="landed"]'), T.money);
     record(true, "the payee's balance shows the money arriving", await page.$eval("[data-payment]", (el) => el.innerText.split("\n")[0]));

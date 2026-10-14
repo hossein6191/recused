@@ -304,7 +304,7 @@ function SpendForm({ desk, member, me, limits, onPosted }: { desk: Desk; member:
           </li>
           <li>
             Then, for {Number.isFinite(liveMin) && liveMin > 0 ? minutesLabel(liveMin) : "the rest of the window"}, any member
-            but you may countersign once. The second clear countersignature pays the payee in its own transaction.
+            but you may countersign once. The second clear countersignature puts it in the desk&apos;s hold, open to challenge; after the hold anyone may release the payment.
           </li>
           <li>You cannot cancel or change a posted spend. If it does not find two clear countersignatures in time, it expires and the money stays in the desk.</li>
         </ul>

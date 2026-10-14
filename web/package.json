@@ -12,8 +12,9 @@
     "typecheck": "tsc --noEmit",
     "sync:contract": "node tools/sync-contract.mjs",
     "check:contract": "node tools/sync-contract.mjs --check",
-    "test:site": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test tests/unit/*.test.mjs",
-    "test:practice": "node tests/site/practice.mjs"
+    "test:site": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tests/unit/ts-resolve.mjs --test tests/unit/*.test.mjs",
+    "test:practice": "node tests/site/practice.mjs",
+    "test:catch": "node tests/site/catch.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

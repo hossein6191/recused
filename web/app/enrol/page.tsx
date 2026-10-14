@@ -18,7 +18,9 @@ import { useMe } from "@/components/use-me";
 import { useRead } from "@/components/use-read";
 import { succeeded, useTx } from "@/components/use-tx";
 import { WalletGate } from "@/components/wallet-gate";
-import { LIMITS, calls, filedDisclosure, readDesk, readLimits, readMember, type Desk, type Limits, type Member } from "@/lib/chain";
+import { PublicNameField, VersionOneNotice } from "@/components/v2";
+import { LIMITS, calls, filedDisclosure, memberPath, publicNameProblem, readDesk, readLimits, readMember, type Desk, type Limits, type Member } from "@/lib/chain";
+import { gen, minutesLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const card = "rounded-2xl border bg-card p-5 sm:p-6";
@@ -52,11 +54,13 @@ export default function EnrolPage() {
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">Enrol</h1>
         <p className="text-muted-foreground">
-          You join a desk by filing a disclosure of your own interests. Nobody admits you and nobody checks it: the contract
-          stores what you file, stamps it with a sequence number, and reads it whenever you countersign a spend posted after
-          that number.
+          You join a desk by filing a disclosure of your own interests and putting up the desk&apos;s member stake. Nobody admits
+          you and nobody checks it: the contract stores what you file, stamps it with a sequence number, and reads it whenever you
+          countersign a spend posted after that number. What you leave out, a page of a public register the desk named can still
+          show, and then the stake pays whoever cited it.
         </p>
       </div>
+      <VersionOneNotice />
 
       <ReadBlock
         state={desk}
@@ -81,6 +85,7 @@ export default function EnrolPage() {
               <p className="text-muted-foreground">
                 {d.members} of {limits.membersPerDesk} members ·{" "}
                 {d.openEnrolment ? "open enrolment: anyone may file" : `fixed roster of ${d.roster.length}: only those addresses may file`} ·{" "}
+                {d.version === 2 ? `stake ${gen(d.memberStakeAtto)}, hold ${minutesLabel(d.holdMinutes)} · ` : ""}
                 <Link href="/desk" className="text-primary underline-offset-4 hover:underline">
                   change desk
                 </Link>
@@ -153,7 +158,12 @@ function WhatHappens({ amend }: { amend?: boolean }) {
             , which posts one after your disclosure.
           </li>
         )}
-        <li>The contract cannot check that it is true or complete. It reads what you file and cannot know what you leave out.</li>
+        <li>
+          The contract cannot check that it is true or complete, and a reading reads only what you file. But while a spend you
+          countersigned is in its hold, anyone may cite a page of a public register this desk named; if every validator reads it as
+          showing a relation to the payee your disclosure left out, your signature is struck and your whole stake is slashed, half to
+          whoever cited it.
+        </li>
       </ul>
     </div>
   );
@@ -174,6 +184,9 @@ function Enrolled({ desk, member, filedSeq }: { desk: Desk; member: string; file
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         <Button asChild variant="outline" size="sm">
+          <Link href={memberPath(desk.id)}>Your stake and record</Link>
+        </Button>
+        <Button asChild variant="outline" size="sm">
           <Link href="/practice">Open the practice desk</Link>
         </Button>
         <Button asChild variant="cool" size="sm">
@@ -191,7 +204,10 @@ function Enrolled({ desk, member, filedSeq }: { desk: Desk; member: string; file
 
 function Enrol({ desk, me, limits, onFiled }: { desk: Desk; me: string; limits: Limits; onFiled: (filed: { member: string; filedSeq: number } | null) => void }) {
   const [value, setValue] = React.useState<Disclosure>(EMPTY_DISCLOSURE);
+  const [publicName, setPublicName] = React.useState("");
   const [error, setError] = React.useState("");
+  const wallet = useMe();
+  const stake = BigInt(desk.memberStakeAtto || "0");
   const tx = useTx((s) => onFiled(succeeded(s) ? filedDisclosure(s) : null));
   const busy = tx.sending || (!!tx.hash && !tx.final);
   const filed = tx.final && succeeded(tx.final) ? filedDisclosure(tx.final) : null;
@@ -229,10 +245,14 @@ function Enrol({ desk, me, limits, onFiled }: { desk: Desk; me: string; limits: 
     );
 
   const submit = () => {
-    const p = disclosureProblem(value, limits);
+    const p = disclosureProblem(value, limits) || publicNameProblem(publicName.trim());
     setError(p);
     if (p) return;
-    void tx.start(calls.enrol(desk.id, value.statement, value.entries, value.addresses));
+    if (stake > wallet.balanceAtto) {
+      setError(`Enrolling stakes ${gen(stake)} and your wallet holds ${gen(wallet.balanceAtto)}. The wallet menu at the top right gets 10 test GEN from the faucet.`);
+      return;
+    }
+    void tx.start(calls.enrol(desk.id, value.statement, value.entries, value.addresses, publicName, stake));
   };
 
   return (
@@ -242,6 +262,15 @@ function Enrol({ desk, me, limits, onFiled }: { desk: Desk; me: string; limits: 
         <SectionHelp k="enrol-file" />
       </h2>
       <DisclosureForm value={value} onChange={setValue} limits={limits} disabled={busy || !!filed} />
+      <PublicNameField value={publicName} onChange={setPublicName} disabled={busy || !!filed} />
+      <div className="rounded-xl border bg-background/40 p-4 text-sm">
+        <p className="font-medium">Your stake: {gen(stake)}</p>
+        <p className="mt-1 text-muted-foreground">
+          Sent with the call and held on {desk.id} for you alone, fixed when the desk was opened. It stays yours: retire whenever you
+          like and take it back once no spend you signed is open or in its hold. A wrong amount is refused and returned in the same
+          transaction. A page of a public register this desk named that shows a relation to a payee you left out costs the whole of it.
+        </p>
+      </div>
       <WhatHappens />
       {error ? (
         <p role="alert" className="text-sm text-gold">
@@ -250,7 +279,7 @@ function Enrol({ desk, me, limits, onFiled }: { desk: Desk; me: string; limits: 
       ) : null}
       {!filed ? (
         <Button type="button" variant="cool" size="lg" disabled={busy || !me} onClick={submit}>
-          <FileSignature /> File it and enrol
+          <FileSignature /> Stake {gen(stake)}, file it and enrol
         </Button>
       ) : null}
       <TxBlock tx={tx} label={`Filing your disclosure on ${desk.id}`} />

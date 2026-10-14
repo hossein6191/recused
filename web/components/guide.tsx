@@ -259,7 +259,7 @@ export function Guide({ className }: { className?: string }) {
         <>
           <p>
             Studio is a test network and its faucet is free: 10 test GEN, credited in a few seconds. Calls cost no fee; the
-            GEN is for funding a desk or opening your own.
+            GEN is for the stake a desk asks of every member, for bond credit to cite a register page, and for funding a desk.
           </p>
           <Button type="button" variant="cool" size="sm" disabled={!connected || funding} onClick={() => void getGen()}>
             {funding ? <Loader2 className="animate-spin" /> : null} {funding ? "Waiting for the faucet" : "Get 10 test GEN"}
@@ -274,8 +274,9 @@ export function Guide({ className }: { className?: string }) {
       body: (
         <>
           <p>
-            Say what you do, name at least one counterparty or activity, and declare any address that is yours. The contract
-            stamps it with a sequence number. One transaction, under a minute.
+            Say what you do, name at least one counterparty or activity, declare any address that is yours, and give the
+            public name a register would list you under. The contract stamps it with a sequence number and holds the desk&apos;s
+            member stake, which stays yours. One transaction, under a minute.
           </p>
           <Button asChild variant="cool" size="sm">
             <Link href="/enrol">
@@ -289,7 +290,12 @@ export function Guide({ className }: { className?: string }) {
     {
       title: "See the outcome",
       done: signed,
-      body: <p>The spend page shows the two characters the validators stored, the sentence the contract wrote, and the payment when the second clear countersignature lands.</p>,
+      body: (
+        <p>
+          The spend page shows the two characters the validators stored, the sentence the contract wrote, the hold the second clear
+          countersignature starts, any register page cited against a signature during it, and the payment when anyone releases it.
+        </p>
+      ),
     },
   ];
   const current = steps.findIndex((s) => !s.done);
@@ -315,8 +321,8 @@ export function Guide({ className }: { className?: string }) {
             <p className="mt-1 text-muted-foreground">
               A spend needs a poster and two countersigners who enrolled before it, so on a desk with spends already posted a
               newcomer can only be refused as filed too late. The practice desk opens a new desk and plays the other members:
-              you reach a judged reading and a real payment alone, in about ten minutes. The steps below are for joining a
-              desk other people are on.
+              you reach a judged reading and a real payment alone, or, on its version 2 track, catch a member who hid a
+              directorship of the payee with a public register page. The steps below are for joining a desk other people are on.
             </p>
           </div>
           <Button asChild variant="cool" size="sm" className="shrink-0">
@@ -409,7 +415,7 @@ function DoneLine({ index, me, balance, progress, deskId }: { index: number; me:
   if (index === 1)
     return (
       <p className="text-xs text-muted-foreground">
-        Balance {gen(balance)}.{balance > 0n ? "" : " Calls cost no fee, so you could enrol without it; GEN is only needed to fund a desk."}
+        Balance {gen(balance)}.{balance > 0n ? "" : " Calls cost no fee, but enrolling sends the desk's member stake, so you need test GEN for it."}
       </p>
     );
   if (index === 2 && progress?.member)
@@ -432,7 +438,7 @@ function DoneLine({ index, me, balance, progress, deskId }: { index: number; me:
           <>
             <p className="text-foreground/90">{reading.why}</p>
             <Link href={spendPath(deskId, n)} className={link}>
-              Open S{n} to see the document, every reading and the payment
+              Open S{n} to see the document, every reading, the hold and the payment
             </Link>
           </>
         ) : null}

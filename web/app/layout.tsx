@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     template: `%s · ${SITE_NAME}`,
   },
   description:
-    "A shared fund where a spend needs two countersignatures. Members file their own interests in advance, and the contract refuses a countersignature when those interests move whether the spend is carried out or not.",
+    "A shared fund where a spend needs two countersignatures. Members file their own interests in advance and stake to sign; the contract refuses a countersignature when those interests move, and a public register page read by every validator can strike one that hid a relation to the payee.",
   applicationName: SITE_NAME,
 };
 
