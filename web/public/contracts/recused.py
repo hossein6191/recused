@@ -957,10 +957,18 @@ QUESTION_SHOWS = (
 )
 
 QUESTION_SILENT = (
-    "Does this page give the name of the person named {public_name}, and is it either silent about any relation "
-    "between that person and that payee, or is every relation it shows between them one the member's filed "
-    "disclosure already mentions? If the page does not give that name at all, answer no. Answer yes, no or unclear."
+    "Apart from any relation the member's filed disclosure already mentions, is this page silent about every "
+    "relation between the person named {public_name} and the payee as the spend document describes it? Answer yes "
+    "if the page shows no such relation, no if it shows one, or unclear."
 )
+
+# Whether the page gives the member's public name at all is decided in code, never asked: the page and the name
+# are lower-cased, every ASCII punctuation mark becomes a space and the spacing is collapsed, and the name must
+# then appear as whole words. A page that does not give it is unclear with no model asked, and the bond goes back:
+# a member who enrols under a name the registers do not use is not caught, and cannot turn accurate challenges
+# into bonds either. Only a page that gives the name reaches the two questions.
+NAME_PUNCTUATION = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
+NAME_TABLE = str.maketrans(NAME_PUNCTUATION, " " * len(NAME_PUNCTUATION))
 
 REGISTER_RETURN = (
     'Answer "unclear" only when the blocks do not let you decide. Return JSON of the form {"answer": "yes"}, '
@@ -1049,14 +1057,20 @@ def _read_answer(raw: typing.Any) -> str:
     return word if word in ANSWER_CHOICES else ""
 
 
+def _names_member(page: str, public_name: str) -> bool:
+    """Whether the page gives the member's public name as whole words, ignoring case and punctuation. No model."""
+    hay = " " + " ".join(str(page).lower().translate(NAME_TABLE).split()) + " "
+    words = " ".join(str(public_name).lower().translate(NAME_TABLE).split())
+    return words != "" and (" " + words + " ") in hay
+
+
 def _combine_register(shows_a: str, shows_b: str, silent_a: str, silent_b: str) -> str:
     """Four answers into one finding. Only two exact patterns decide; everything else is unclear.
 
-    Clean needs SILENT yes, and SILENT is yes only for a page that gives the
-    member's public name: a page that does not name the member answers no to
-    both questions and lands in unclear, which returns the bond. So a member
-    who enrols under a name the registers do not use is not caught, and cannot
-    collect bonds from accurate challenges either.
+    The questions are asked only about a page that gives the member's public
+    name (_names_member decides that in code), so clean means the page named
+    the member and showed nothing about the payee that their disclosure left
+    out.
     """
     if shows_a == YES and shows_b == YES and silent_a == NO and silent_b == NO:
         return FOUND_HIDDEN
@@ -2847,9 +2861,9 @@ class Recused(gl.Contract):
                 "askings": "each question in two presentation orders, the page first and the documents first: "
                            "four askings inside one block, which every validator reruns in full",
                 "combine": "hidden only when SHOWS is yes in both orders and SILENT is no in both; clean only when "
-                           "SHOWS is no in both and SILENT is yes in both, and SILENT is yes only for a page that "
-                           "gives the member's public name; anything else, a page that does not name the member "
-                           "and an unreadable answer included, is unclear",
+                           "SHOWS is no in both and SILENT is yes in both; anything else, an unreadable answer "
+                           "included, is unclear. A page that does not give the member's public name as whole "
+                           "words (checked in code, ignoring case and punctuation) is unclear with no model asked",
                 "compared": "{\"verdict\": hidden, clean or unclear, \"fp\": 16 hex characters}, by exact "
                             "equality; a leader whose fetch or model call failed is never agreed with",
                 "money": {
@@ -3463,6 +3477,8 @@ class Recused(gl.Contract):
                 raise gl.vm.UserError(ERROR_TRANSIENT + " the page answered with status " + str(status) + "; an "
                                       "error page is not a register page, nothing was stored and no bond was taken")
             page = _page_text(fetched)
+            if not _names_member(page, public_name):
+                return {"verdict": FOUND_UNCLEAR, "fp": _fingerprint(page)}
             answers = []
             for framing, page_first in REGISTER_ASKINGS:
                 prompt = _register_task(framing, public_name, spend_doc, interests_doc, page, page_first)

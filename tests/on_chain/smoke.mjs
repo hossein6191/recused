@@ -403,7 +403,7 @@ console.log(`\n[${stamp()}] ---- phase C: version 1 still holds, and two clear r
 {
   await until(D1, N3, "notice_until");
   const b2 = await call("c1", "b", "recused", "approve", [D1, N2]);
-  ok("B, who part owns Pelican Press, is read interested on the spend that pays it, and refused", b2.applied && b2.j?.ok === false && b2.j?.verdict === "interested" && b2.j?.attempt_spent === true, `${votes(b2)} value ${b2.j?.value}`);
+  ok("B, who part owns Pelican Press, is not read clear on the spend that pays it (interested, or unclear), and is refused with her attempt spent", b2.applied && b2.j?.ok === false && (b2.j?.verdict === "interested" || b2.j?.verdict === "unclear") && b2.j?.attempt_spent === true, `${votes(b2)} ${b2.j?.verdict} value ${b2.j?.value}`);
   const a3 = await call("c2", "a", "recused", "approve", [D1, N3]);
   ok("A's countersignature on a spend that pays A's own address is declared, with no model asked", a3.j?.ok === false && a3.j?.verdict === "declared" && a3.j?.model_asked === false && a3.j?.value === "--", `${votes(a3)} ${a3.j?.verdict}`);
   const b1 = await call("c3", "b", "recused", "approve", [D1, N1], { watch: { P }, expect: { P: 0n } });

@@ -109,18 +109,19 @@ The two questions, each asked with the page first and with the documents first:
 > document describes it (owns, runs, directs, works for or is paid by it, or is close family of someone who does)
 > that the member's filed disclosure does not mention? Answer yes, no or unclear.
 >
-> **SILENT** Does this page give the name of the person named {public_name}, and is it either silent about any
-> relation between that person and that payee, or is every relation it shows between them one the member's filed
-> disclosure already mentions? If the page does not give that name at all, answer no. Answer yes, no or unclear.
+> **SILENT** Apart from any relation the member's filed disclosure already mentions, is this page silent about
+> every relation between the person named {public_name} and the payee as the spend document describes it? Answer
+> yes if the page shows no such relation, no if it shows one, or unclear.
+
+The questions are asked only about a page that gives the member's public name. That is decided in code, not asked:
+the page and the name are lower-cased, punctuation becomes spacing, and the name must appear as whole words. A page
+that does not give it is **unclear** with no model asked and the bond goes back: a member who enrols under a name
+the registers do not use is not caught, but cannot turn accurate challenges into bonds either.
 
 **hidden** only when SHOWS is yes in both orders and SILENT is no in both;
-**clean** only when SHOWS is no in both and SILENT is yes in both; anything else,
-an unreadable answer included, is **unclear**. SILENT is yes only for a page
-that names the member, so **clean** means the page named the member and showed
-nothing about the payee that their disclosure left out. A page that does not
-name the member at all reads unclear and returns the bond: a member who enrols
-under a name the registers do not use is not caught, but cannot turn accurate
-challenges into bonds either.
+**clean** only when SHOWS is no in both and SILENT is yes in both, so **clean** means the page named the member
+and showed nothing about the payee that their disclosure left out; anything else, an unreadable answer included,
+is **unclear**.
 
 | finding | the signature | the spend | the member's stake | the challenger's bond | the public record |
 |---|---|---|---|---|---|

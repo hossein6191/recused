@@ -4627,8 +4627,7 @@ class TestChallenge:
         TRANSFERS.clear()
         out = _challenge(c, S, "M3", GULL_URL)          # Tomas Brandt is not on the Gull Catering page
         assert out["verdict"] == rc.FOUND_UNCLEAR and out["bond_to"] == S.lower() and _sent() == []
-        assert len(CALLS) == 4 and all("If the page does not give that name at all, answer no." in p
-                                       for p in CALLS if "Does this page give the name" in p)
+        assert CALLS == []                            # the name is not on the page: decided in code, no model asked
         assert json.loads(c.bond_credit_of(S))["bond_credit"] == str(GEN // 5)
         assert json.loads(c.member("D1", C))["cleared"] == 0
         # Mara Quist under a name the register does not use: the accurate page cannot catch her, and costs nothing
@@ -4643,11 +4642,19 @@ class TestChallenge:
         TRANSFERS.clear()
         out = _challenge(hider, S, "M4", GULL_URL)
         assert out["verdict"] == rc.FOUND_UNCLEAR and _sent() == []
-        assert 'the person named "M. Q. Harbour"' in CALLS[0]
+        assert CALLS == []
         assert json.loads(hider.bond_credit_of(S))["bond_credit"] == str(GEN // 5)
         assert json.loads(hider.member("D1", B))["cleared"] == 0
         # and a model that answered SILENT yes for a page that never names the member is still not clean
         assert rc._combine_register("no", "no", "no", "no") == rc.FOUND_UNCLEAR
+
+    def test_the_public_name_is_found_in_code_as_whole_words_ignoring_case_and_punctuation(self):
+        page = "Current officers: MARA QUIST, director; Ilse Quist-Byrne (secretary). Joann Leeds."
+        assert rc._names_member(page, "Mara Quist") and rc._names_member(page, "mara  quist")
+        assert rc._names_member(page, "Ilse Quist-Byrne") and rc._names_member(page, "Ilse Quist Byrne")
+        assert not rc._names_member(page, "Ann Lee") and not rc._names_member(page, "Mara Quis")
+        assert not rc._names_member(page, "Quist Mara") and not rc._names_member(page, "...")
+        assert not rc._names_member("", "Mara Quist")
 
     def test_a_disclosed_relation_is_clean_and_a_former_one_is_unclear(self):
         """The register catches what was hidden; a relation the disclosure names was the reading's to judge."""
@@ -4675,9 +4682,10 @@ class TestChallenge:
                  rmodel(shows="no", silent="no"),
                  rmodel(shows="yes", silent="unclear"),
                  rmodel(garbage=True))
-        urls = [GULL_URL, HERON_URL, PELICAN_URL, OSPREY_URL, REG + "a.html", REG + "b.html"]
-        pages = dict(PAGES)
-        pages.update({REG + "a.html": (200, "a page"), REG + "b.html": (200, "b page")})
+        urls = [REG + "m" + str(k) + ".html" for k in range(len(cases))]
+        pages = dict(PAGES)                               # every page gives Mara Quist, so every case is asked
+        pages.update({u: (200, "Company name: Tern Lane Traders " + str(k) + " Ltd. Current officers: Mara Quist, "
+                           "director.") for k, u in enumerate(urls)})
         for k, m in enumerate(cases):
             TRANSFERS.clear()
             out = _challenge(c, S, "M2", urls[k], 9, node(m, pages))
@@ -5071,11 +5079,16 @@ class TestConservation:
                             before = _snapshot(c)
                         number = c.member_rows["D1:" + target].number if "D1:" + target in c.member_rows else 9
                         pick = min(("hidden", "clean", "failed", "unclear"), key=lambda k: seen[k])
-                        world = {"hidden": node(rmodel("yes", "no")), "clean": node(rmodel("no", "yes")),
-                                 "unclear": node(rmodel("yes", "yes")),
+                        rng.choice(self.URLS)                     # drawn as before, so the journeys are unchanged
+                        url = REG + "j" + str(trial) + "-" + str(step) + ".html"
+                        pages = dict(PAGES)                       # a page that gives the target's public name
+                        pages[url] = (200, "Company name: Tern Lane Traders Ltd. Current officers: " + _name(target)
+                                      + ", director. Extract " + str(trial) + "-" + str(step) + ".")
+                        world = {"hidden": node(rmodel("yes", "no"), pages), "clean": node(rmodel("no", "yes"), pages),
+                                 "unclear": node(rmodel("yes", "yes"), pages),
                                  "failed": node(error=RuntimeError("no page"))}[pick]
                         try:
-                            out = _challenge(c, who, "M" + str(number), rng.choice(self.URLS), minute, world,
+                            out = _challenge(c, who, "M" + str(number), url, minute, world,
                                              n=s["spend"][1:])
                             seen[out["verdict"]] += 1
                             if out["state_after"] == rc.STATE_EXPIRED:
